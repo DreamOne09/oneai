@@ -1,0 +1,15 @@
+# Zeabur git-linked build: context = repo root
+# ZBPACK_DOCKERFILE_PATH=Dockerfile.approval
+FROM node:20-alpine
+WORKDIR /app
+COPY services/approval/package.json ./
+RUN npm install --omit=dev
+COPY services/approval/src ./src
+
+ENV NODE_ENV=production
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-8080}/health" 2>/dev/null || exit 1
+
+CMD ["node", "src/server.js"]
