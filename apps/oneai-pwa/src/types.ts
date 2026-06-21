@@ -1,0 +1,72 @@
+// OneAI agent 狀態機:驅動呼吸核心的節奏與色彩
+export type AgentStatus =
+  | 'idle'
+  | 'listening'
+  | 'thinking'
+  | 'speaking'
+  | 'alert'
+  | 'success'
+
+export type ActivityKind = 'info' | 'task' | 'result' | 'warning' | 'user'
+
+export interface ActivityItem {
+  id: string
+  kind: ActivityKind
+  text: string
+  ts: number
+  // 訊息來源 agent（'user' 為使用者自己）
+  agentId?: string
+  agentIcon?: string
+  agentDisplay?: string
+  memoriesUsed?: number
+}
+
+export type ApprovalAction =
+  | 'send_email'
+  | 'spend_money'
+  | 'publish'
+  | 'delete_file'
+  | 'run_command'
+
+// ── Multi-Agent 狀態面板 ────────────────────────────────────────────────────
+export interface AgentInfo {
+  agent_id: string
+  display?: string
+  org?: string
+  status: 'idle' | 'running' | 'error' | string
+  current_task?: string | null
+  last_seen: number
+  online: boolean
+}
+
+export type ServiceStatus = 'ok' | 'error' | 'offline' | 'configured' | 'missing_key' | 'not_deployed' | 'unknown'
+
+export interface ServiceInfo {
+  status: ServiceStatus
+  latency_ms?: number | null
+  detail?: string
+}
+
+export interface SystemStatus {
+  ts: number
+  services: {
+    approval_svc: ServiceInfo
+    openrouter: ServiceInfo
+    rag_svc: ServiceInfo
+    librechat: ServiceInfo
+  }
+  agents: AgentInfo[]
+}
+
+export interface Approval {
+  id: string
+  action: ApprovalAction
+  summary: string
+  details?: Record<string, unknown>
+  createdAt: number
+  timeoutSec: number
+  // 該審核專屬一次性 token,隨通知下發;decide 時須回傳供伺服器驗證
+  actionToken?: string
+  // 參數雜湊(批准的==執行的);供稽核與一致性比對
+  paramsHash?: string
+}

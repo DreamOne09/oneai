@@ -1,0 +1,9 @@
+# 核心相依(雲端部署用此檔即可,輕量):
+#  - 嵌入走雲端 OpenRouter(設 EMBEDDING_API_KEY)→ 只需 openai,免 torch。
+#  - 本機要用免費 bge → 另裝 requirements-local.txt(含 sentence-transformers/torch)。
+chromadb>=0.5.0
+python-frontmatter>=1.1.0
+openai>=1.40.0
+# 常駐 RAG 服務 (service.py):模型/索引載一次,免每次 spawn 重載
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0

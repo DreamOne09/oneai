@@ -1,0 +1,26 @@
+# OneAI — repo 根目錄部署用(目前僅 librechat 映像從根 context 建置)。
+# 只需 bridge/ scripts/ config/ infra/;其餘大目錄全部排除以縮小上傳。
+.git/
+.gitignore
+.env
+*.log
+
+# 與 librechat 映像無關的大目錄
+brain/
+apps/
+hands/
+services/
+docs/
+canvases/
+mcps/
+terminals/
+agent-tools/
+agent-transcripts/
+
+# 依賴/虛擬環境/快取(mcp-core 依賴改在映像內 npm install)
+node_modules/
+**/node_modules/
+**/.venv/
+**/.chroma/
+**/__pycache__/
+**/*.pyc

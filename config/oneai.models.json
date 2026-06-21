@@ -1,0 +1,75 @@
+{
+  "_comment": "OneAI 模型登錄表 (SSOT) — 2026-06-21 修正版。數據來源：openrouter.ai、llm-stats.com 實測。模型 id 只放這裡，不寫死程式碼。",
+  "_data_source": "OpenRouter 2026-06-21，定價/能力以該網站為準",
+  "gateway": "openrouter",
+  "active": "smart",
+
+  "aliases": {
+    "smart":         "anthropic/claude-sonnet-4-6",
+    "opus":          "anthropic/claude-opus-4-8",
+    "gpt":           "openai/gpt-5.5",
+    "gpt-fast":      "openai/gpt-4.1-mini",
+    "gemini-agent":  "google/gemini-3.5-flash",
+    "gemini":        "google/gemini-2.5-pro",
+    "gemini-fast":   "google/gemini-2.5-flash",
+    "gemini-lite":   "google/gemini-2.5-flash-lite",
+    "deepseek":      "deepseek/deepseek-v4-pro",
+    "deepseek-fast": "deepseek/deepseek-v4-flash",
+    "free-fast":     "meta-llama/llama-3.3-70b-instruct:free",
+    "free-code":     "qwen/qwen3-coder:free",
+    "free-deep":     "deepseek/deepseek-v4-flash:free"
+  },
+
+  "roles": {
+    "brain":   "smart",
+    "agent":   "gemini-agent",
+    "distill": "gemini-fast",
+    "code":    "deepseek",
+    "fast":    "gemini-fast"
+  },
+
+  "_fallback_chain": [
+    "google/gemini-2.5-flash",
+    "google/gemini-3.5-flash",
+    "openai/gpt-4.1-mini",
+    "meta-llama/llama-3.3-70b-instruct:free"
+  ],
+
+  "_model_facts": {
+    "_note": "數據來源：OpenRouter、llm-stats.com、docsbot.ai 實測（2026-06）",
+    "google/gemini-3.5-flash": {
+      "alias": "gemini-agent",
+      "cost_per_M": "$1.50 in / $9.00 out",
+      "best_for": "Agent/Coding/MCP — Terminal-Bench 76.2% > 3.1 Pro 70.3%；MCP Atlas 83.6% > 78.2%",
+      "NOT_best_for": "純學術推理（Humanity's Last Exam），那類任務 2.5-pro 更強",
+      "released": "2026-05，Google I/O"
+    },
+    "google/gemini-2.5-pro": {
+      "alias": "gemini",
+      "cost_per_M": "$1.25 in / $10.00 out",
+      "best_for": "穩定旗艦推理、數學、科學任務",
+      "status": "Stable（非 Preview），適合 production",
+      "released": "2025-06"
+    },
+    "google/gemini-2.5-flash": {
+      "alias": "gemini-fast",
+      "cost_per_M": "$0.15 in / $0.60 out",
+      "best_for": "日常對話、摘要、快速任務 — CP 值最高（比 gemini-3.5-flash 便宜 10 倍）",
+      "note": "原本 gemini-flash 別名指向的是這個價格，但實際 id 是 gemini-3.5-flash，已修正"
+    },
+    "google/gemini-2.5-flash-lite": {
+      "alias": "gemini-lite",
+      "cost_per_M": "~$0.10 in / $0.40 out",
+      "best_for": "批次分類、摘要、低優先任務"
+    },
+    "anthropic/claude-sonnet-4-6": {
+      "alias": "smart",
+      "best_for": "通用旗艦，繁中品質佳，程式碼品質高，目前 OneAI 預設主力"
+    },
+    "deepseek/deepseek-v4-pro": {
+      "alias": "deepseek",
+      "cost_per_M": "$0.46 in / $0.92 out",
+      "best_for": "程式碼性價比最高（SWE-bench 80.6%）"
+    }
+  }
+}

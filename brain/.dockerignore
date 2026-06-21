@@ -1,0 +1,8 @@
+# 不進 build context / 映像(縮小、加速)
+rag/.venv/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+rag/.chroma/
+**/.chroma/
+*.log

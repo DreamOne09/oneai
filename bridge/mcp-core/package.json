@@ -1,0 +1,16 @@
+{
+  "name": "mcp-core-bridge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP 橋接伺服器:把知識庫 / 寫回記憶 / 審核 / 本機肉體 包成 LibreChat(或任何 MCP host) 可用工具",
+  "bin": { "mcp-core-bridge": "src/server.js" },
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  }
+}

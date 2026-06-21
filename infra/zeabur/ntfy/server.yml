@@ -1,0 +1,22 @@
+# ntfy 伺服器設定 (掛載到 /etc/ntfy/server.yml)
+# 官方映像: binwiederhier/ntfy (請 pin 固定版本,勿用 :latest)  指令: serve
+# Tier 0 護欄:穩定度最高。下列 cache/web-push/auth 三個 db 檔所在目錄
+#   (/var/cache/ntfy 與 /var/lib/ntfy) 須掛 Zeabur 持久卷,否則重啟掉離線補收與帳號。
+
+base-url: "https://your-ntfy.zeabur.app"
+listen-http: ":80"
+
+# 訊息暫存 (供 App 離線後補收)
+cache-file: "/var/cache/ntfy/cache.db"
+cache-duration: "12h"
+
+# Web Push (App 關閉時的 OS 推播)。用 approval-svc 的 gen-vapid 產生金鑰。
+web-push-public-key: "REPLACE_VAPID_PUBLIC"
+web-push-private-key: "REPLACE_VAPID_PRIVATE"
+web-push-file: "/var/cache/ntfy/webpush.db"
+web-push-email-address: "you@example.com"
+
+# 存取控制:預設拒絕,僅授權帳號可讀寫 (正式環境務必開啟)
+auth-file: "/var/lib/ntfy/user.db"
+auth-default-access: "deny-all"
+behind-proxy: true

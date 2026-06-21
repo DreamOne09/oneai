@@ -1,0 +1,8 @@
+# 不上傳到 Zeabur(縮小、加速 deploy)
+rag/.venv/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+rag/.chroma/
+**/.chroma/
+*.log

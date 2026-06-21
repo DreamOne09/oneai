@@ -1,0 +1,43 @@
+# OneAI — LibreChat 設定範本(掛載到容器的 CONFIG_PATH=/app/librechat.yaml)
+# 注意:version 與欄位請對齊你「部署的 LibreChat 版本」之 schema(官方文件),這裡為起點。
+# 模型清單對應 config/oneai.models.json;OpenRouter 為 OpenAI 相容,一把 key 涵蓋多家。
+version: 1.2.1
+cache: true
+
+endpoints:
+  custom:
+    - name: "OpenRouter"
+      # 與根目錄 .env 同一把 OpenRouter key(容器 env 注入 OPENAI_API_KEY)
+      apiKey: "${OPENAI_API_KEY}"
+      baseURL: "https://openrouter.ai/api/v1"
+      models:
+        # fetch:true 會自動抓 /models;default 為下拉預設(對齊我們的角色與別名)
+        default:
+          - "anthropic/claude-sonnet-4.6"   # brain / code(預設)
+          - "anthropic/claude-opus-4.8"      # 深度推理
+          - "openai/gpt-5.5"
+          - "openai/gpt-4.1-mini"
+          - "google/gemini-2.5-pro"
+          - "google/gemini-2.5-flash-lite"   # distill(便宜)
+          - "deepseek/deepseek-v3.2"
+        fetch: true
+      titleConvo: true
+      titleModel: "google/gemini-2.5-flash-lite"   # 標題用便宜模型省錢
+      modelDisplayLabel: "OneAI"
+
+# 把 OneAI 的差異化能力以 MCP 掛進 LibreChat(host 沒有的:大腦/記憶/審核/換腦)
+# mcp-core 以 stdio 啟動;檔案在映像 /app/oneai(見 infra/zeabur/librechat/Dockerfile)。
+# ONEAI_CLOUD=1 → 只註冊雲端安全工具,不含本機肉體(run_local_*)。
+mcpServers:
+  oneai-core:
+    command: "node"
+    args:
+      - "/app/oneai/bridge/mcp-core/src/server.js"
+    # 雲端:RAG 走常駐 rag-svc(免在此容器裝 python/torch);審核走自架 approval-svc。
+    # 以下值由 librechat 服務 env 注入(見 .deploy-state.md)。
+    env:
+      ONEAI_CLOUD: "1"
+      RAG_API_URL: "${RAG_API_URL}"
+      APPROVAL_BASE_URL: "${APPROVAL_BASE_URL}"
+      APPROVAL_TOKEN: "${APPROVAL_TOKEN}"
+      VAULT_MAX_CHARS: "8000"

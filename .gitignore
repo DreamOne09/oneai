@@ -1,0 +1,56 @@
+# 機密 (絕不進 git)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+vapid-*.json
+
+# 依賴 / 建置
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 向量索引 / 快取
+.chroma/
+.cache/
+*.sqlite
+*.db
+
+# 審核服務執行期狀態(待審/決定/訂閱,含一次性 token,絕不進 git)
+services/approval/data/
+**/approval.json
+
+# OS / 編輯器
+.DS_Store
+Thumbs.db
+
+# Cursor 沙盒內部
+agent-tools/
+agent-transcripts/
+canvases/
+terminals/
+mcps/
+
+# 個人 Obsidian 筆記（私人內容，不進 git）
+brain/vault/
+
+# 向量索引資料（重建即可，不需版本控制）
+brain/rag/chroma_data/
+brain/rag/*.db
+brain/rag/data/
+
+# Windows 腳本產生物
+hands/antigravity/scripts/start-worker.bat
+
+# Zeabur / Docker 本機測試殘留
+*.log
+logs/

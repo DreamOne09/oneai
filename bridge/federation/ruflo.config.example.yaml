@@ -1,0 +1,40 @@
+# ruflo federation 設定範本 (加密零信任橋接)
+# 真實憑證/金鑰勿進 git。複製成 ruflo.config.yaml 後填入。
+
+identity:
+  node_id: limengyi-local
+  # ed25519 私鑰路徑 (本機簽章身分)
+  private_key: ./certs/ed25519.key
+  public_key: ./certs/ed25519.pub
+
+transport:
+  # mTLS:雙向憑證驗證
+  tls:
+    ca_cert: ./certs/ca.pem
+    cert: ./certs/local.pem
+    key: ./certs/local.key
+
+peers:
+  # 雲端大腦 (Zeabur 上的 LibreChat 旁的 ruflo node)
+  - node_id: brain-cloud
+    endpoint: wss://your-federation-endpoint
+    public_key: ./certs/brain.pub
+    role: brain
+
+# 本機暴露給雲端的工具 (透過 MCP 橋接)
+exposed_tools:
+  mcp:
+    command: node
+    args: ["bridge/mcp-core/src/server.js"]
+    # 本機肉體:Antigravity 在 run_local_command / run_local_task 後面
+    description: vault/記憶/approval/hands 工具集
+
+policy:
+  # 遠端可調用的工具白名單
+  allow:
+    - vault_query
+    - run_local_command
+    - run_local_task
+    - request_approval
+  # 高風險工具一律經審核服務 (見 hands/antigravity/policy.py)
+  require_approval_via: http://localhost:8787

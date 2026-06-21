@@ -1,0 +1,17 @@
+﻿{
+    "name":  "approval-svc",
+    "version":  "1.1.0",
+    "private":  true,
+    "type":  "module",
+    "description":  "Human-in-the-Loop 撖拇??:ntfy ?冽 + Web Push + approve/reject + ?暹??身??",
+    "main":  "src/server.js",
+    "scripts":  {
+                    "dev":  "node --watch src/server.js",
+                    "start":  "node src/server.js",
+                    "gen-vapid":  "node src/gen-vapid.js"
+                },
+    "dependencies":  {
+                         "express":  "^4.21.0",
+                         "web-push":  "^3.6.7"
+                     }
+}

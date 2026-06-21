@@ -1,0 +1,4 @@
+# 本機開發額外相依:免費中文嵌入 bge-small-zh(需 sentence-transformers + torch,約 2GB)。
+# 雲端部署「不要」裝此檔——雲端走 OpenRouter 嵌入,免 torch、映像更小。
+-r requirements.txt
+sentence-transformers>=3.0.0

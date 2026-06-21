@@ -1,0 +1,23 @@
+# 與 .zeaburignore 同步:librechat 映像只需 bridge/ scripts/ config/ infra/。
+.git/
+.gitignore
+.env
+*.log
+
+brain/
+apps/
+hands/
+services/
+docs/
+canvases/
+mcps/
+terminals/
+agent-tools/
+agent-transcripts/
+
+node_modules/
+**/node_modules/
+**/.venv/
+**/.chroma/
+**/__pycache__/
+**/*.pyc
