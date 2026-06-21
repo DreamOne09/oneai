@@ -1,4 +1,4 @@
 {
-  "build_command": "npm install --omit=dev",
-  "start_command": "node src/server.min.js"
+  "build_command": "npm install --omit=dev --prefix services/approval",
+  "start_command": "node services/approval/src/server.min.js"
 }
