@@ -1,0 +1,23 @@
+# oneai-pwa-v2 — build context = repo root
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY apps/oneai-pwa/package.json ./
+RUN npm install
+COPY apps/oneai-pwa/ .
+
+ARG VITE_APPROVAL_BASE_URL
+ARG VITE_APPROVAL_TOKEN
+ARG VITE_CHAT_TOKEN
+ARG VITE_VAPID_PUBLIC_KEY
+ARG VITE_NTFY_BASE_URL
+ARG VITE_NTFY_TOPIC_NOTIFY
+ARG VITE_NTFY_TOPIC_APPROVALS
+ARG VITE_LIBRECHAT_BASE_URL
+RUN npm run build
+
+FROM nginx:alpine
+COPY apps/oneai-pwa/nginx.conf /etc/nginx/templates/default.conf.template
+COPY --from=build /app/dist /usr/share/nginx/html
+ENV PORT=80
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
