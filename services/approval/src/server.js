@@ -92,7 +92,20 @@ function requireWorkerToken(req, res, next) {
   return res.status(401).json({ error: 'unauthorized' })
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, pending: store.listPending().length }))
+app.get('/health', (_req, res) => res.json({ ok: true, version: '1.2.0', pending: store.listPending().length }))
+
+// /status  ── 服務狀態快速查詢（E2E / 監控用，需 service token）
+app.get('/status', requireServiceToken, (_req, res) => {
+  res.json({
+    ts: Date.now(),
+    version: '1.2.0',
+    services: {
+      approval_svc: { status: 'ok', pending: store.listPending().length },
+      openrouter: { status: process.env.OPENAI_API_KEY ? 'configured' : 'missing_key' },
+    },
+    agents: store.listAgents(),
+  })
+})
 
 /**
  * 建立審核請求(非阻塞)。立即回 202 + approval_id,呼叫端改以 GET /status/:id 輪詢。
@@ -800,14 +813,23 @@ app.post('/brain/remember', requireChatToken, async (req, res) => {
 
 app.get('/brain/summary', async (_req, res) => {
   const RAG_HOST = process.env.RAG_SVC_HOST ? `http://${process.env.RAG_SVC_HOST}:8080` : null
-  if (!RAG_HOST) return res.json({ status: 'not_deployed', total_memories: 0 })
+  if (!RAG_HOST) return res.json({
+    status: 'not_deployed', total_memories: 0,
+    summary: 'RAG 記憶庫尚未部署，開啟後孟一將能持久記住你的偏好與脈絡。',
+    note: 'RAG 服務未部署'
+  })
   try {
     const r = await fetch(`${RAG_HOST}/health`, { signal: AbortSignal.timeout(3000) })
-    if (!r.ok) return res.json({ status: 'error', total_memories: 0 })
+    if (!r.ok) return res.json({ status: 'error', total_memories: 0, summary: '記憶庫暫時離線', note: 'RAG health check failed' })
     const health = await r.json()
-    res.json({ status: 'ok', total_memories: health.doc_count ?? health.total ?? 0, rag_host: RAG_HOST.split(':')[1] })
+    const total = health.doc_count ?? health.total ?? 0
+    res.json({
+      status: 'ok', total_memories: total,
+      summary: `記憶庫運行正常，已儲存 ${total} 則記憶。`,
+      rag_host: RAG_HOST.split(':')[1]
+    })
   } catch {
-    res.json({ status: 'offline', total_memories: 0 })
+    res.json({ status: 'offline', total_memories: 0, summary: '記憶庫連線逾時', note: 'RAG timeout' })
   }
 })
 
