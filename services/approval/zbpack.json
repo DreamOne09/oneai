@@ -1,1 +1,4 @@
-{}
+{
+  "build_command": "npm install --omit=dev",
+  "start_command": "node src/server.js"
+}
