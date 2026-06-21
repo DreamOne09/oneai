@@ -48,9 +48,10 @@ async function saveMemory(text: string): Promise<void> {
 
 interface BrainPanelProps {
   onClose: () => void
+  inline?: boolean   // true = 直接嵌入頁面（Memory Tab），false = overlay 彈窗
 }
 
-export function BrainPanel({ onClose }: BrainPanelProps) {
+export function BrainPanel({ onClose, inline = false }: BrainPanelProps) {
   const [query, setQuery] = useState('孟一')
   const [memories, setMemories] = useState<Memory[]>([])
   const [summary, setSummary] = useState<BrainSummary | null>(null)
@@ -96,9 +97,8 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
 
   const statusColor = summary?.status === 'ok' ? '#4ade80' : '#f87171'
 
-  return (
-    <div className="brain-panel-overlay" onClick={onClose}>
-      <div className="brain-panel" onClick={e => e.stopPropagation()}>
+  const panelContent = (
+    <div className={inline ? 'brain-panel brain-panel--inline' : 'brain-panel'} onClick={e => e.stopPropagation()}>
         {/* 標題列 */}
         <div className="brain-panel-header">
           <span className="brain-panel-title">🫀 數位大腦 · 記憶庫</span>
@@ -166,7 +166,13 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
             {saved ? '✓ 已記住' : saving ? '儲存中…' : '寫入記憶'}
           </button>
         </div>
-      </div>
+    </div>
+  )
+
+  if (inline) return panelContent
+  return (
+    <div className="brain-panel-overlay" onClick={onClose}>
+      {panelContent}
     </div>
   )
 }

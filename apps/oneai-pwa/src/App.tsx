@@ -1,22 +1,91 @@
 import { useEffect, useState } from 'react'
 import Orb from './components/Orb'
-import StatusBar from './components/StatusBar'
 import ActivityFeed from './components/ActivityFeed'
 import ApprovalCard from './components/ApprovalCard'
 import ChatInput from './components/ChatInput'
-import AgentPanel from './components/AgentPanel'
-import DevPanel from './components/DevPanel'
+import AgentGrid from './components/AgentGrid'
 import { BrainPanel } from './components/BrainPanel'
 import { AgyPanel } from './components/AgyPanel'
+import DevPanel from './components/DevPanel'
 import { connectNtfy } from './lib/ntfy'
 import { startHeartbeat } from './lib/heartbeat'
 import { enablePush } from './lib/push'
 import { useOneAI } from './state/store'
 
-export default function App() {
+type Tab = 'chat' | 'agents' | 'memory' | 'settings'
+
+const LABEL: Record<string, string> = {
+  idle:      '待命',
+  listening: '聆聽中',
+  thinking:  '思考中',
+  speaking:  '回應中',
+  alert:     '等待授權',
+  success:   '完成',
+}
+
+function shortModel(m: string | null): string {
+  if (!m) return ''
+  return (m.split('/').pop() ?? m)
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim()
+}
+
+// ── 底部 Tab 按鈕 ─────────────────────────────────────────────────────────────
+function TabBtn({
+  icon, label, active, onClick,
+}: {
+  id?: Tab; icon: string; label: string; active: boolean; onClick: () => void
+}) {
+  return (
+    <button
+      className={`tab-btn ${active ? 'tab-btn--active' : ''}`}
+      onClick={onClick}
+      aria-label={label}
+    >
+      <span className="tab-btn-icon">{icon}</span>
+      <span className="tab-btn-label">{label}</span>
+    </button>
+  )
+}
+
+// ── 設定頁（簡版） ────────────────────────────────────────────────────────────
+function SettingsTab({ onShowAgy }: { onShowAgy: () => void }) {
   const setPushEnabled = useOneAI((s) => s.setPushEnabled)
-  const [showBrain, setShowBrain] = useState(false)
+
+  return (
+    <div className="settings-tab">
+      <div className="settings-section">
+        <p className="settings-title">系統控制</p>
+        <button
+          className="settings-row glass"
+          onClick={async () => setPushEnabled(await enablePush())}
+        >
+          <span>🔔</span> 開啟手機推播通知
+        </button>
+        <button className="settings-row glass" onClick={onShowAgy}>
+          <span>⚡</span> 直接控制桌機 Worker
+        </button>
+      </div>
+      <div className="settings-section">
+        <p className="settings-title">系統資訊</p>
+        <div className="settings-info glass">
+          <p>服務端點</p>
+          <code>{import.meta.env.VITE_APPROVAL_BASE_URL ?? '未設定'}</code>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── 主 App ────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [tab, setTab] = useState<Tab>('chat')
   const [showAgy, setShowAgy] = useState(false)
+
+  const status    = useOneAI((s) => s.status)
+  const connected = useOneAI((s) => s.connected)
+  const model     = useOneAI((s) => s.currentModel)
 
   useEffect(() => {
     const stopHeartbeat = startHeartbeat()
@@ -27,52 +96,90 @@ export default function App() {
     }
   }, [])
 
+  // 點 Agents tab 時暫時縮小 orb
+  const orbSmall = tab !== 'chat'
+
   return (
     <div className="app">
-      <div className="orb-layer">
+
+      {/* ── Orb（背景，永遠存在）──────────────────────────── */}
+      <div className={`orb-layer ${orbSmall ? 'orb-layer--small' : ''}`}>
         <Orb />
       </div>
 
+      {/* ── UI 疊層 ────────────────────────────────────────── */}
       <div className="ui-layer">
-        <StatusBar />
-        <AgentPanel />
 
-        <div className="center">
-          <ActivityFeed />
-        </div>
-
-        <div className="bottom">
-          <ApprovalCard />
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              className="enable-push glass"
-              onClick={async () => setPushEnabled(await enablePush())}
-            >
-              開啟手機推播
-            </button>
-            <button
-              className="glass"
-              style={{ padding: '8px 14px', borderRadius: 12, fontSize: 14, cursor: 'pointer', border: '1px solid rgba(103,232,249,0.2)', background: 'rgba(34,211,238,0.08)', color: 'var(--cyan-soft)', flexShrink: 0 }}
-              onClick={() => setShowBrain(true)}
-              title="數位大腦 · 記憶庫"
-            >
-              🫀 大腦
-            </button>
-            <button
-              className="glass"
-              style={{ padding: '8px 14px', borderRadius: 12, fontSize: 14, cursor: 'pointer', border: '1px solid rgba(250,204,21,0.25)', background: 'rgba(250,204,21,0.08)', color: '#fde68a', flexShrink: 0 }}
-              onClick={() => setShowAgy(true)}
-              title="直接控制桌機 agy"
-            >
-              ⚡ 桌機
-            </button>
+        {/* 頂部 Header */}
+        <header className="app-header glass">
+          <button className="header-icon-btn" aria-label="選單">◈</button>
+          <div className="header-center">
+            <h1 className="header-title">ONEai</h1>
+            <span
+              className="header-status-dot"
+              data-status={status}
+              title={LABEL[status] ?? status}
+            />
           </div>
-          <ChatInput />
-        </div>
+          <div className="header-right">
+            {model && <span className="header-model">{shortModel(model)}</span>}
+            <span className={`header-conn ${connected ? 'connected' : 'disconnected'}`}>
+              {connected ? '●' : '○'}
+            </span>
+          </div>
+        </header>
+
+        {/* 內容區 */}
+        <main className="app-main">
+
+          {/* Chat Tab */}
+          {tab === 'chat' && (
+            <div className="tab-chat">
+              <div className="tab-chat-feed">
+                <ActivityFeed />
+              </div>
+              <div className="tab-chat-input">
+                <ApprovalCard />
+                <ChatInput />
+              </div>
+            </div>
+          )}
+
+          {/* Agents Tab */}
+          {tab === 'agents' && (
+            <div className="tab-scroll">
+              <AgentGrid />
+            </div>
+          )}
+
+          {/* Memory Tab */}
+          {tab === 'memory' && (
+            <div className="tab-scroll">
+              <BrainPanel inline onClose={() => setTab('chat')} />
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {tab === 'settings' && (
+            <div className="tab-scroll">
+              <SettingsTab onShowAgy={() => setShowAgy(true)} />
+            </div>
+          )}
+
+        </main>
+
+        {/* 底部 Tab Bar */}
+        <nav className="bottom-nav glass">
+          <TabBtn id="chat"     icon="◈"  label="AI 介面" active={tab === 'chat'}     onClick={() => setTab('chat')} />
+          <TabBtn id="agents"   icon="⊞"  label="Agents"  active={tab === 'agents'}   onClick={() => setTab('agents')} />
+          <TabBtn id="memory"   icon="🫀" label="記憶"    active={tab === 'memory'}   onClick={() => setTab('memory')} />
+          <TabBtn id="settings" icon="⚙"  label="設定"    active={tab === 'settings'} onClick={() => setTab('settings')} />
+        </nav>
+
       </div>
 
+      {/* 浮動面板 */}
       <DevPanel />
-      {showBrain && <BrainPanel onClose={() => setShowBrain(false)} />}
       {showAgy && <AgyPanel onClose={() => setShowAgy(false)} />}
     </div>
   )
