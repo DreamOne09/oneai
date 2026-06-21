@@ -11,9 +11,6 @@ jobs:
   build-pwa:
     name: Build PWA
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/oneai-pwa
 
     steps:
       - uses: actions/checkout@v4
@@ -22,15 +19,16 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: apps/oneai-pwa/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install all workspace dependencies
+        run: npm ci --ignore-scripts
 
       - name: Type-check
+        working-directory: apps/oneai-pwa
         run: npx tsc --noEmit
 
       - name: Build
+        working-directory: apps/oneai-pwa
         run: npm run build
         env:
           VITE_APPROVAL_BASE_URL: https://approval-svc.zeabur.app
@@ -47,9 +45,6 @@ jobs:
   lint-approval:
     name: Lint approval-svc
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/approval
 
     steps:
       - uses: actions/checkout@v4
@@ -58,12 +53,12 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: services/approval/package-lock.json
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install all workspace dependencies
+        run: npm ci --ignore-scripts
 
       - name: Syntax check
+        working-directory: services/approval
         run: node --check src/server.js
 
   # ── 3. Docker build check ──────────────────────────────────────────────────
