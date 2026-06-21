@@ -1,0 +1,82 @@
+name: OneAI CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  # ── 1. Build oneai-pwa ──────────────────────────────────────────────────────
+  build-pwa:
+    name: Build PWA
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/oneai-pwa
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/oneai-pwa/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_APPROVAL_BASE_URL: https://approval-svc.zeabur.app
+          VITE_CHAT_TOKEN: ci-placeholder
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-dist
+          path: apps/oneai-pwa/dist
+          retention-days: 7
+
+  # ── 2. Lint approval-svc ───────────────────────────────────────────────────
+  lint-approval:
+    name: Lint approval-svc
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/approval
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: services/approval/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Syntax check
+        run: node --check src/server.js
+
+  # ── 3. Docker build check ──────────────────────────────────────────────────
+  docker-check:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build approval-svc image
+        run: docker build -f services/approval/Dockerfile services/approval/ -t oneai-approval:ci
+
+      - name: Build oneai-pwa image
+        run: docker build -f apps/oneai-pwa/Dockerfile apps/oneai-pwa/ -t oneai-pwa:ci
+        env:
+          VITE_APPROVAL_BASE_URL: https://approval-svc.zeabur.app
