@@ -117,33 +117,6 @@ jobs:
               -d '{"visibility":"public"}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('visibility') or d.get('message','?'))"
           done
 
-  # ── 3. Deploy to Zeabur via image tag update ───────────────────────────────
-  deploy:
-    name: Deploy to Zeabur
-    runs-on: ubuntu-latest
-    needs: build-push
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
-
-    steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Login to Zeabur CLI
-        run: npx zeabur@latest auth login --token "${{ secrets.ZEABUR_TOKEN }}"
-
-      - name: Update approval-svc image tag on Zeabur
-        run: |
-          npx zeabur@latest service update tag \
-            --id "${{ secrets.APPROVAL_SERVICE_ID }}" \
-            --env-id "${{ secrets.ZEABUR_ENV_ID }}" \
-            -t "${{ env.APPROVAL_IMAGE }}:latest" \
-            -y -i=false
-
-      - name: Update oneai-pwa image tag on Zeabur
-        run: |
-          npx zeabur@latest service update tag \
-            --id "${{ secrets.PWA_SERVICE_ID }}" \
-            --env-id "${{ secrets.ZEABUR_ENV_ID }}" \
-            -t "${{ env.PWA_IMAGE }}:latest" \
-            -y -i=false
+  # ── 3. Deploy (disabled - Zeabur git trigger handles deployment via ZBPACK_APP_DIR) ──
+  # deploy step intentionally removed to avoid GHCR private image conflicts
+  # Zeabur automatically rebuilds when GitHub push triggers the git-linked service
