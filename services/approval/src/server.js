@@ -215,7 +215,7 @@ app.post('/tasks', requireServiceToken, (req, res) => {
 // 不帶 type 參數           → 全接受（向後相容）
 // 注意:此路由須定義在 `/tasks/:id` 之前,否則會被 `:id` 當成 id="next" 吃掉而走錯鑑權。
 app.get('/tasks/next', requireWorkerToken, (req, res) => {
-  const typeFilter = (req.query.type as string | undefined) ?? null
+  const typeFilter = req.query.type ? String(req.query.type) : null
   const deadline = Date.now() + TASK_LONGPOLL_MS
   let done = false
   const finish = (fn) => {
