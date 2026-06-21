@@ -6,12 +6,17 @@ on:
   pull_request:
     branches: [master, main]
 
-jobs:
-  # ── 1. Build oneai-pwa ──────────────────────────────────────────────────────
-  build-pwa:
-    name: Build PWA
-    runs-on: ubuntu-latest
+env:
+  REGISTRY: ghcr.io
+  APPROVAL_IMAGE: ghcr.io/dreamone09/oneai/approval-svc
+  PWA_IMAGE: ghcr.io/dreamone09/oneai/oneai-pwa
+  VITE_APPROVAL_URL: https://oneai-approval.zeabur.app
 
+jobs:
+  # ── 1. Type-check + lint ───────────────────────────────────────────────────
+  check:
+    name: Type-check & Lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -20,72 +25,93 @@ jobs:
           node-version: '20'
           cache: npm
 
-      - name: Install all workspace dependencies
+      - name: Install workspace dependencies
         run: npm ci --ignore-scripts
 
-      - name: Type-check
+      - name: Type-check PWA
         working-directory: apps/oneai-pwa
         run: npx tsc --noEmit
-
-      - name: Build
-        working-directory: apps/oneai-pwa
-        run: npm run build
         env:
-          VITE_APPROVAL_BASE_URL: https://oneai-approval.zeabur.app
+          VITE_APPROVAL_BASE_URL: ${{ env.VITE_APPROVAL_URL }}
           VITE_CHAT_TOKEN: ci-placeholder
 
-      - name: Upload dist artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pwa-dist
-          path: apps/oneai-pwa/dist
-          retention-days: 7
-
-  # ── 2. Lint approval-svc ───────────────────────────────────────────────────
-  lint-approval:
-    name: Lint approval-svc
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-
-      - name: Install all workspace dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Syntax check
+      - name: Syntax check approval-svc
         working-directory: services/approval
         run: node --check src/server.js
 
-  # ── 3. Docker build check ──────────────────────────────────────────────────
-  docker-check:
-    name: Docker Build Check
+  # ── 2. Build & push Docker images to GHCR ─────────────────────────────────
+  build-push:
+    name: Build & Push Images
     runs-on: ubuntu-latest
+    needs: check
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      approval_tag: ${{ steps.meta-approval.outputs.tags }}
+      pwa_tag: ${{ steps.meta-pwa.outputs.tags }}
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build approval-svc image
-        run: docker build -f services/approval/Dockerfile services/approval/ -t oneai-approval:ci
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build oneai-pwa image
-        run: docker build -f apps/oneai-pwa/Dockerfile apps/oneai-pwa/ -t oneai-pwa:ci
-        env:
-          VITE_APPROVAL_BASE_URL: https://oneai-approval.zeabur.app
+      # ---- approval-svc ----
+      - name: Docker metadata (approval-svc)
+        id: meta-approval
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.APPROVAL_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
 
-  # ── 4. Deploy to Zeabur (only on push to master) ─────────────────────────
+      - name: Build & push approval-svc
+        uses: docker/build-push-action@v5
+        with:
+          context: services/approval
+          file: services/approval/Dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta-approval.outputs.tags }}
+          labels: ${{ steps.meta-approval.outputs.labels }}
+
+      # ---- oneai-pwa ----
+      - name: Docker metadata (oneai-pwa)
+        id: meta-pwa
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.PWA_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & push oneai-pwa
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/oneai-pwa
+          file: apps/oneai-pwa/Dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta-pwa.outputs.tags }}
+          labels: ${{ steps.meta-pwa.outputs.labels }}
+          build-args: |
+            VITE_APPROVAL_BASE_URL=${{ env.VITE_APPROVAL_URL }}
+            VITE_CHAT_TOKEN=${{ secrets.VITE_CHAT_TOKEN }}
+            VITE_APPROVAL_TOKEN=${{ secrets.VITE_APPROVAL_TOKEN }}
+            VITE_VAPID_PUBLIC_KEY=${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+
+  # ── 3. Deploy to Zeabur via image tag update ───────────────────────────────
   deploy:
     name: Deploy to Zeabur
     runs-on: ubuntu-latest
-    needs: [build-pwa, lint-approval, docker-check]
+    needs: build-push
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
 
     steps:
-      - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -93,17 +119,18 @@ jobs:
       - name: Login to Zeabur CLI
         run: npx zeabur@latest auth login --token "${{ secrets.ZEABUR_TOKEN }}"
 
-      - name: Set Zeabur project context
-        run: npx zeabur@latest context set project --id "${{ secrets.ZEABUR_PROJECT_ID }}"
-
-      - name: Deploy approval-svc to Zeabur
-        working-directory: services/approval
+      - name: Update approval-svc image tag on Zeabur
         run: |
-          npx zeabur@latest context set service --id "${{ secrets.APPROVAL_SERVICE_ID }}"
-          npx zeabur@latest upload -i=false
+          npx zeabur@latest service update tag \
+            --id "${{ secrets.APPROVAL_SERVICE_ID }}" \
+            --env-id "${{ secrets.ZEABUR_ENV_ID }}" \
+            -t "${{ env.APPROVAL_IMAGE }}:latest" \
+            -y -i=false
 
-      - name: Deploy oneai-pwa to Zeabur
-        working-directory: apps/oneai-pwa
+      - name: Update oneai-pwa image tag on Zeabur
         run: |
-          npx zeabur@latest context set service --id "${{ secrets.PWA_SERVICE_ID }}"
-          npx zeabur@latest upload -i=false
+          npx zeabur@latest service update tag \
+            --id "${{ secrets.PWA_SERVICE_ID }}" \
+            --env-id "${{ secrets.ZEABUR_ENV_ID }}" \
+            -t "${{ env.PWA_IMAGE }}:latest" \
+            -y -i=false
