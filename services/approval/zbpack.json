@@ -1,4 +1,4 @@
 {
-  "build_command": "cd services/approval && npm install --omit=dev",
-  "start_command": "cd services/approval && node src/server.js"
+  "build_command": "npm install --omit=dev",
+  "start_command": "node src/server.js"
 }
