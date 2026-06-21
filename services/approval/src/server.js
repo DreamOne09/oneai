@@ -346,12 +346,59 @@ const MENGYI_BRIEF = `【用戶背景：李孟一 (Meng-Yi Li)】
 const AGENTS_META = {
   assistant:        { icon: '🧠', display: 'OneAI' },
   butler:           { icon: '🫀', display: '管家' },
+  researcher:       { icon: '🌐', display: '研究員' },
   engineer:         { icon: '💻', display: '工程師' },
   pm:               { icon: '📊', display: 'PM' },
   coach:            { icon: '🧘', display: '教練' },
   analyst:          { icon: '🔍', display: '分析師' },
   code_reviewer:    { icon: '🔎', display: 'Code Review' },
   security_auditor: { icon: '🛡️', display: '資安審查' },
+}
+
+// ── 網路搜尋（Researcher Agent 用）──────────────────────────────────────────
+const TAVILY_KEY  = process.env.TAVILY_API_KEY || ''
+const SERPAPI_KEY = process.env.SERPAPI_KEY || ''
+
+async function webSearch(query, maxResults = 5) {
+  // 優先 Tavily（最佳品質），其次 SerpAPI，最後 DuckDuckGo HTML 刮取（免費備援）
+  if (TAVILY_KEY) {
+    try {
+      const r = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: TAVILY_KEY, query, max_results: maxResults, search_depth: 'basic' }),
+        signal: AbortSignal.timeout(8000),
+      })
+      if (r.ok) {
+        const d = await r.json()
+        return (d.results ?? []).slice(0, maxResults).map(x => `[${x.title}](${x.url})\n${x.content ?? x.snippet ?? ''}`)
+      }
+    } catch { /* fallthrough */ }
+  }
+  if (SERPAPI_KEY) {
+    try {
+      const url = `https://serpapi.com/search?q=${encodeURIComponent(query)}&api_key=${SERPAPI_KEY}&num=${maxResults}`
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) })
+      if (r.ok) {
+        const d = await r.json()
+        return (d.organic_results ?? []).slice(0, maxResults).map(x => `[${x.title}](${x.link})\n${x.snippet ?? ''}`)
+      }
+    } catch { /* fallthrough */ }
+  }
+  // DuckDuckGo HTML fallback（免費，但可能被封鎖）
+  try {
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) })
+    if (r.ok) {
+      const html = await r.text()
+      const snippets = [...html.matchAll(/<a class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g)]
+        .slice(0, maxResults).map(m => m[1].replace(/<[^>]+>/g, '').trim())
+      const titles = [...html.matchAll(/<a class="result__a"[^>]*>([\s\S]*?)<\/a>/g)]
+        .slice(0, maxResults).map(m => m[1].replace(/<[^>]+>/g, '').trim())
+      return snippets.map((s, i) => `${titles[i] ?? '搜尋結果'}\n${s}`)
+    }
+  } catch { /* fallthrough */ }
+  return ['[搜尋失敗] 請設定 TAVILY_API_KEY 環境變數以啟用可靠的網路搜尋']
 }
 
 const AGENT_SYSTEMS = {
@@ -423,6 +470,13 @@ const AGENT_SYSTEMS = {
 7. 三大支柱資料隔離：程式碼是否可能洩漏跨品牌資料
 輸出格式：嚴重性分級（🔴 Critical / 🟡 Warning / 🔵 Suggestion），每條附具體行號與改進建議。`,
 
+  // ── 研究員（上網搜尋） ────────────────────────────────────────────────────
+  researcher: `${MENGYI_BRIEF}
+你是孟一的研究員，負責搜尋最新資訊、市場資料、技術文章、競品資訊。
+你已獲得搜尋結果作為工作材料，請基於這些結果給出有依據的分析，並標注資料來源。
+若搜尋結果不足，誠實說明並建議替代查詢方向。
+輸出風格：簡潔、有數據、繁體中文。`,
+
   // ── 資安審查 ────────────────────────────────────────────────────────────
   security_auditor: `${MENGYI_BRIEF}
 你是孟一的資安審查專家（OWASP Top 10 + SANS 25），服務三大支柱的安全邊界。
@@ -441,6 +495,7 @@ const AGENT_SYSTEMS = {
 // 關鍵字路由（若未能從 agents.json 讀到）
 const DEFAULT_ROUTING = {
   butler:           ['記憶', '記得', '你知道我', '腦中', '管家', '整理記憶', '知識庫', '你記得', '你學到', '你知道什麼', '備忘', '我說過', '之前提到', '數位大腦', '大腦狀態'],
+  researcher:       ['搜尋', '查一下', '最新', '新聞', '市場研究', '找資料', '調查', '競品', '幫我看', '上網', '查查', 'search', '參考資料', '有沒有'],
   engineer:         ['程式', 'code', 'bug', '部署', 'deploy', '架構', 'api', '資料庫', 'docker', 'git', 'terminal', 'script', '修', '錯誤', 'dropout', '琢奧'],
   pm:               ['策略', '產品', '商業', 'okr', '路線圖', '競爭', '用戶', '定價', '市場', '提案', '簡報', '客戶', 'dreamone', '夢想一號', '木桶', '峰終', '三爽'],
   coach:            ['平衡', '時間', '壓力', '目標', '決定', '選擇', '累了', '迷失', '意義', '方向', '放棄', '值不值得', '人生', '三大支柱', 'meilan', '梅蘭', 'holistic', '多贏'],
@@ -473,6 +528,7 @@ async function detectAgentsLLM(userMsg, memoryBlock) {
 你是梅蘭，孟一的營運長（COO）。孟一剛說了一句話，你需要決定要調用哪些專家 Agent 來協助回覆。
 
 可用的 Agent（只選真正需要的）：
+- researcher：搜尋網路最新資訊、市場資料、新聞、競品分析（有即時搜尋能力）
 - engineer：程式開發、技術問題、系統架構、debug、部署
 - pm：商業策略、產品規劃、市場分析、OKR、簡報
 - coach：人生哲學、平衡、目標設定、個人成長、情緒支持（你自己的專長）
@@ -609,13 +665,22 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
     }
   }
 
-  // ④ 子 Agent 並行呼叫（system prompt 含記憶）
+  // ④ 若 researcher 被調用，先執行網路搜尋
+  let searchResults = ''
+  if (agentIds.includes('researcher')) {
+    const results = await webSearch(userMsg, 5)
+    searchResults = `\n\n【網路搜尋結果（關鍵字：${userMsg.slice(0, 60)}）】\n${results.join('\n\n')}\n`
+    console.log(`[orchestrate] 研究員網路搜尋完成，取得 ${results.length} 筆結果`)
+  }
+
+  // ⑤ 子 Agent 並行呼叫（system prompt 含記憶）
   const subResults = await Promise.allSettled(
     agentIds.map(async (id) => {
       const agentCfg = AGENTS_CONFIG.agents?.[id] ?? {}
       const meta = AGENTS_META[id] ?? { icon: '🤖', display: id }
       const baseSystem = AGENT_SYSTEMS[id] ?? `${MENGYI_BRIEF}\n你是孟一的 AI 助理，用繁體中文簡潔回覆。`
-      const agentSystem = baseSystem + memoryBlock
+      // researcher 額外注入搜尋結果
+      const agentSystem = baseSystem + memoryBlock + (id === 'researcher' ? searchResults : '')
       const agentModel = agentCfg.model ?? CHAT_DEFAULT_MODEL
       const finalMsgs = [{ role: 'system', content: agentSystem }, ...messages]
       const tryList = [agentModel, ...CHAT_FALLBACK_CHAIN.filter(m => m !== agentModel)]
@@ -791,3 +856,28 @@ app.get('/system/status', async (_req, res) => {
 })
 
 app.listen(PORT, () => console.log(`[approval] 審核服務 listening on :${PORT}`))
+
+// ── 主動監控：worker 離線超過 5 分鐘自動推播 ──────────────────────────────────
+const WORKER_OFFLINE_THRESHOLD_MS = 5 * 60 * 1000   // 5 分鐘
+const MONITOR_INTERVAL_MS         = 2 * 60 * 1000   // 每 2 分鐘檢查
+const offlineNotified = new Set() // 避免重複推播同一 agent
+
+setInterval(async () => {
+  const now = Date.now()
+  const agents = store.listAgents()
+  for (const ag of agents) {
+    const offlineMs = now - (ag.last_seen ?? 0)
+    if (offlineMs > WORKER_OFFLINE_THRESHOLD_MS) {
+      if (!offlineNotified.has(ag.agent_id)) {
+        offlineNotified.add(ag.agent_id)
+        const title = `⚠ Worker 離線：${ag.display ?? ag.agent_id}`
+        const body  = `已離線 ${Math.round(offlineMs / 60000)} 分鐘，上次回報：${new Date(ag.last_seen ?? 0).toLocaleTimeString('zh-TW')}`
+        console.warn(`[monitor] ${title} - ${body}`)
+        try { await notify(title, body) } catch { /* ignore ntfy failure */ }
+      }
+    } else {
+      // worker 恢復上線，重置通知狀態
+      offlineNotified.delete(ag.agent_id)
+    }
+  }
+}, MONITOR_INTERVAL_MS)

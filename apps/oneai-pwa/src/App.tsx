@@ -7,6 +7,7 @@ import ChatInput from './components/ChatInput'
 import AgentPanel from './components/AgentPanel'
 import DevPanel from './components/DevPanel'
 import { BrainPanel } from './components/BrainPanel'
+import { AgyPanel } from './components/AgyPanel'
 import { connectNtfy } from './lib/ntfy'
 import { startHeartbeat } from './lib/heartbeat'
 import { enablePush } from './lib/push'
@@ -15,6 +16,7 @@ import { useOneAI } from './state/store'
 export default function App() {
   const setPushEnabled = useOneAI((s) => s.setPushEnabled)
   const [showBrain, setShowBrain] = useState(false)
+  const [showAgy, setShowAgy] = useState(false)
 
   useEffect(() => {
     const stopHeartbeat = startHeartbeat()
@@ -56,6 +58,14 @@ export default function App() {
             >
               🫀 大腦
             </button>
+            <button
+              className="glass"
+              style={{ padding: '8px 14px', borderRadius: 12, fontSize: 14, cursor: 'pointer', border: '1px solid rgba(250,204,21,0.25)', background: 'rgba(250,204,21,0.08)', color: '#fde68a', flexShrink: 0 }}
+              onClick={() => setShowAgy(true)}
+              title="直接控制桌機 agy"
+            >
+              ⚡ 桌機
+            </button>
           </div>
           <ChatInput />
         </div>
@@ -63,6 +73,7 @@ export default function App() {
 
       <DevPanel />
       {showBrain && <BrainPanel onClose={() => setShowBrain(false)} />}
+      {showAgy && <AgyPanel onClose={() => setShowAgy(false)} />}
     </div>
   )
 }
