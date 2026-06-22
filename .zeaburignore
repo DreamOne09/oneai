@@ -7,15 +7,19 @@
 
 # 與 librechat 映像無關的大目錄
 brain/
-apps/
 hands/
-services/
 docs/
 canvases/
 mcps/
 terminals/
 agent-tools/
 agent-transcripts/
+
+# monorepo 子服務：排除大部分，但保留 Zeabur 部署需要的
+apps/
+!apps/oneai-pwa/
+services/
+!services/approval/
 
 # 依賴/虛擬環境/快取(mcp-core 依賴改在映像內 npm install)
 node_modules/
