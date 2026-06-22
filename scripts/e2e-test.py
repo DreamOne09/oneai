@@ -175,10 +175,31 @@ for token_label, token in [('CHAT_TOKEN', CHAT_TOKEN), ('SVC_TOKEN fallback', SV
         agents_used = body.get('agents', [])
         check(f'HTTP 200 [{token_label}]', True, f'got {status}')
         check('有梅蘭回覆', len(reply) > 10, f'{reply[:80]}...' if len(reply)>80 else reply)
+        check('有 brain 元資料', 'brain' in body, str(body.get('brain', {}))[:80])
         ok(f'調用 agents: {agents_used}  延遲: {elapsed}s')
         break
     else:
         ok(f'{token_label} got {status}, trying next...')
+
+# ── 7b. 網搜元資料 ───────────────────────────────────────────────────────────
+section('7b · 網搜 web_search [orchestrate]')
+token_to_use = CHAT_TOKEN or SVC_TOKEN
+if not token_to_use:
+    skip('web_search', 'token 未設')
+else:
+    status, body = req('POST', '/chat/orchestrate',
+        body={'messages': [{'role': 'user', 'content': '搜尋 Zeabur 平台是什麼'}]},
+        token=token_to_use, timeout=60)
+    if status == 200:
+        ws = body.get('web_search')
+        researcher = any(a.get('id') == 'researcher' for a in body.get('agents', []))
+        check('觸發 researcher 或 web_search', ws is not None or researcher,
+              str(ws)[:80] if ws else f'researcher={researcher}')
+        if ws:
+            check('web_search 含 sources', isinstance(ws.get('sources'), list),
+                  f"provider={ws.get('provider')} count={ws.get('result_count')}")
+    else:
+        skip('web_search', f'orchestrate got {status}')
 
 # ── 8. 記憶庫查詢 ────────────────────────────────────────────────────────────
 section('8 · 記憶庫查詢 /brain/memories [需新版部署]')

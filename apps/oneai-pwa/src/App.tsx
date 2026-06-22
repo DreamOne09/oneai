@@ -78,6 +78,40 @@ function SettingsTab({ onShowAgy }: { onShowAgy: () => void }) {
   )
 }
 
+const APPROVAL_BASE = (import.meta.env.VITE_APPROVAL_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
+
+function BrainHeaderBadge() {
+  const [total, setTotal] = useState<number | null>(null)
+  const [brainOk, setBrainOk] = useState(false)
+
+  useEffect(() => {
+    if (!APPROVAL_BASE) return
+    const load = () => {
+      fetch(`${APPROVAL_BASE}/brain/summary`)
+        .then(r => r.ok ? r.json() : null)
+        .then((d: { total_memories?: number; status?: string } | null) => {
+          if (!d) return
+          setTotal(d.total_memories ?? 0)
+          setBrainOk(d.status === 'ok')
+        })
+        .catch(() => {})
+    }
+    load()
+    const t = window.setInterval(load, 60_000)
+    return () => clearInterval(t)
+  }, [])
+
+  if (total === null) return null
+  return (
+    <span
+      className={`header-brain ${brainOk ? 'header-brain--ok' : 'header-brain--warn'}`}
+      title={brainOk ? `數位大腦在線 · ${total} 條記憶` : '記憶庫離線或未部署'}
+    >
+      🫀 {total}
+    </span>
+  )
+}
+
 // ── 主 App ────────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState<Tab>('chat')
@@ -122,6 +156,7 @@ export default function App() {
             />
           </div>
           <div className="header-right">
+            <BrainHeaderBadge />
             {model && <span className="header-model">{shortModel(model)}</span>}
             <span className={`header-conn ${connected ? 'connected' : 'disconnected'}`}>
               {connected ? '●' : '○'}

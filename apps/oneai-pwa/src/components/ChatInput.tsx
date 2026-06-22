@@ -5,6 +5,21 @@ import { orchestrate, type AgentContrib, type History, type OrchestrateResult } 
 const APPROVAL_BASE = (import.meta.env.VITE_APPROVAL_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 const APPROVAL_TOKEN = import.meta.env.VITE_APPROVAL_TOKEN as string | undefined
 
+const PENDING_STEPS = [
+  '🔍 分析意圖…',
+  '🧠 調取長期記憶…',
+  '🌐 搜尋最新資料…',
+  '🤖 多 Agent 協作…',
+  '✨ 整合回覆…',
+]
+
+const QUICK_CHIPS = [
+  { label: '🌐 搜尋', hint: '搜尋 ' },
+  { label: '🧠 記憶', hint: '你還記得什麼關於 ' },
+  { label: '📊 分析', hint: '分析 ' },
+  { label: '💻 寫程式', hint: '幫我寫 ' },
+]
+
 // ── Web Speech API 語音輸入 ────────────────────────────────────────────────
 type SpeechRecognitionLike = {
   lang: string
@@ -153,12 +168,18 @@ export default function ChatInput() {
     // 用戶訊息氣泡
     pushActivity('user', msg, { agentId: 'user', agentIcon: '👤', agentDisplay: '你' })
     setStatus('thinking')
-    setPending('')
+    let pendingIdx = 0
+    setPending(PENDING_STEPS[0])
+    const pendingTimer = window.setInterval(() => {
+      pendingIdx = (pendingIdx + 1) % PENDING_STEPS.length
+      setPending(PENDING_STEPS[pendingIdx])
+    }, 1800)
 
     const history = historyRef.current.slice(-12)
 
     try {
       const result = await orchestrate(msg, history)
+      clearInterval(pendingTimer)
       historyRef.current = [
         ...history,
         { role: 'user', content: msg },
@@ -167,6 +188,27 @@ export default function ChatInput() {
       setPending(null)
       setCurrentModel(result.model)
       setStatus('speaking')
+
+      const memCount = result.brain?.memories_used ?? result.memories_used ?? 0
+      if (memCount > 0) {
+        const preview = result.brain?.memory_preview?.[0]
+        pushActivity('memory', preview
+          ? `🧠 調取 ${memCount} 條記憶：${preview.slice(0, 60)}…`
+          : `🧠 調取 ${memCount} 條長期記憶`, { memoriesUsed: memCount })
+      }
+
+      if (result.web_search) {
+        const ws = result.web_search
+        const prov = ws.provider === 'none' ? '備援' : ws.provider
+        pushActivity('search', `🌐 已搜尋「${ws.query}」(${prov} · ${ws.result_count} 筆)`, {
+          agentId: 'researcher', agentIcon: '🔍', agentDisplay: '研究員',
+          searchSources: ws.sources?.slice(0, 5),
+        })
+      }
+
+      if (result.brain?.remembered) {
+        pushActivity('memory', '📝 已寫入長期記憶，下次對話會記得', { brainLearned: true })
+      }
 
       const hasMultiple = result.agents.length > 1
 
@@ -184,7 +226,7 @@ export default function ChatInput() {
           agentId: 'orchestrator',
           agentIcon: '🧠',
           agentDisplay: 'OneAI 合成',
-          memoriesUsed: result.memories_used,
+          memoriesUsed: memCount,
         })
       } else {
         // 單 Agent：直接顯示
@@ -193,12 +235,13 @@ export default function ChatInput() {
           agentId: agent?.id ?? 'assistant',
           agentIcon: agent?.icon ?? '🧠',
           agentDisplay: agent?.display ?? 'OneAI',
-          memoriesUsed: result.memories_used,
+          memoriesUsed: memCount,
         })
       }
 
       setLastResult(result)
     } catch (err) {
+      clearInterval(pendingTimer)
       setPending(null)
       pushActivity('warning', `錯誤：${(err as Error).message}`, {
         agentId: 'assistant',
@@ -268,6 +311,22 @@ export default function ChatInput() {
         </div>
       )}
 
+      {/* 快捷指令 chips */}
+      <div className="quick-chips">
+        {QUICK_CHIPS.map(c => (
+          <button
+            key={c.label}
+            type="button"
+            className="chip glass"
+            disabled={busy}
+            onClick={() => setText(prev => prev ? prev : c.hint)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="chat-row">
       <form className="chat glass" onSubmit={submit}>
         {/* 麥克風按鈕 */}
         {speechSupported && (
@@ -286,7 +345,7 @@ export default function ChatInput() {
           onChange={(e) => setText(e.target.value)}
           onFocus={() => setStatus('listening')}
           onBlur={() => useOneAI.getState().status === 'listening' && setStatus('idle')}
-          placeholder={isListening ? '聆聽中…' : '對梅蘭說…'}
+          placeholder={isListening ? '聆聽中…' : '對梅蘭說…（可搜尋、查記憶、寫程式）'}
           aria-label="訊息輸入"
           disabled={busy}
         />
@@ -301,6 +360,7 @@ export default function ChatInput() {
       >
         ✕
       </button>
+      </div>
     </div>
   )
 }

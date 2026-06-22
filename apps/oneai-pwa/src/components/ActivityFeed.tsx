@@ -14,6 +14,8 @@ const AGENT_COLORS: Record<string, string> = {
   pm:               '#a78bfa',
   coach:            '#4ade80',
   analyst:          '#fbbf24',
+  researcher:       '#38bdf8',
+  butler:           '#c084fc',
   code_reviewer:    '#60a5fa',
   security_auditor: '#f87171',
   orchestrator:     '#c084fc',
@@ -54,7 +56,10 @@ function MessageBubble({ item }: { item: ActivityItem }) {
           <div className="msg-meta">
             <span className="msg-name" style={{ color }}>{item.agentDisplay ?? 'OneAI'}</span>
             {item.memoriesUsed ? (
-              <span className="msg-memory">📎 記憶 ×{item.memoriesUsed}</span>
+              <span className="msg-memory">🧠 記憶 ×{item.memoriesUsed}</span>
+            ) : null}
+            {item.brainLearned ? (
+              <span className="msg-learned">📝 已學習</span>
             ) : null}
             <span className="msg-time">
               {new Date(item.ts).toLocaleTimeString('zh-Hant', { hour: '2-digit', minute: '2-digit' })}
@@ -74,6 +79,23 @@ function MessageBubble({ item }: { item: ActivityItem }) {
             </button>
           )}
         </div>
+
+        {/* 搜尋來源連結 */}
+        {item.searchSources && item.searchSources.length > 0 && (
+          <div className="msg-sources">
+            {item.searchSources.map((s, i) => (
+              <a
+                key={`${s.url}-${i}`}
+                className="source-link"
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                🔗 {s.title.slice(0, 40)}{s.title.length > 40 ? '…' : ''}
+              </a>
+            ))}
+          </div>
+        )}
 
         {/* 用戶訊息時間（靠右）*/}
         {isUser && (
@@ -133,8 +155,8 @@ function AgentFilterBar({ activeAgentIds }: { activeAgentIds: string[] }) {
       {activeAgentIds.map((id) => {
         const hidden  = hiddenAgentIds.includes(id)
         const color   = agentColor(id)
-        const ICONS: Record<string, string>   = { engineer: '💻', pm: '📊', coach: '🧘', analyst: '🔍', code_reviewer: '🔎', security_auditor: '🛡️', assistant: '🧠', orchestrator: '🧠' }
-        const LABELS: Record<string, string>  = { engineer: '工程師', pm: 'PM', coach: '教練', analyst: '分析師', code_reviewer: 'Code Review', security_auditor: '資安', assistant: 'OneAI', orchestrator: 'OneAI' }
+        const ICONS: Record<string, string>   = { engineer: '💻', pm: '📊', coach: '🧘', analyst: '🔍', researcher: '🔍', butler: '🫀', code_reviewer: '🔎', security_auditor: '🛡️', assistant: '🧠', orchestrator: '🧠' }
+        const LABELS: Record<string, string>  = { engineer: '工程師', pm: 'PM', coach: '教練', analyst: '分析師', researcher: '研究員', butler: '管家', code_reviewer: 'Code Review', security_auditor: '資安', assistant: 'OneAI', orchestrator: 'OneAI' }
         return (
           <button
             key={id}

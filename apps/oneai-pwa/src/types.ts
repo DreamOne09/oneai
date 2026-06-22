@@ -7,7 +7,12 @@ export type AgentStatus =
   | 'alert'
   | 'success'
 
-export type ActivityKind = 'info' | 'task' | 'result' | 'warning' | 'user'
+export type ActivityKind = 'info' | 'task' | 'result' | 'warning' | 'user' | 'thinking' | 'memory' | 'search'
+
+export interface SearchSource {
+  title: string
+  url: string
+}
 
 export interface ActivityItem {
   id: string
@@ -19,6 +24,8 @@ export interface ActivityItem {
   agentIcon?: string
   agentDisplay?: string
   memoriesUsed?: number
+  searchSources?: SearchSource[]
+  brainLearned?: boolean
 }
 
 export type ApprovalAction =

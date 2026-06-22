@@ -372,7 +372,9 @@ const AGENTS_META = {
 const TAVILY_KEY  = process.env.TAVILY_API_KEY || ''
 const SERPAPI_KEY = process.env.SERPAPI_KEY || ''
 
+/** @returns {{ snippets: string[], sources: { title: string, url: string }[], provider: string }} */
 async function webSearch(query, maxResults = 5) {
+  const empty = { snippets: [], sources: [], provider: 'none' }
   // 優先 Tavily（最佳品質），其次 SerpAPI，最後 DuckDuckGo HTML 刮取（免費備援）
   if (TAVILY_KEY) {
     try {
@@ -384,7 +386,12 @@ async function webSearch(query, maxResults = 5) {
       })
       if (r.ok) {
         const d = await r.json()
-        return (d.results ?? []).slice(0, maxResults).map(x => `[${x.title}](${x.url})\n${x.content ?? x.snippet ?? ''}`)
+        const rows = (d.results ?? []).slice(0, maxResults)
+        return {
+          provider: 'tavily',
+          sources: rows.map(x => ({ title: x.title ?? '搜尋結果', url: x.url ?? '' })).filter(s => s.url),
+          snippets: rows.map(x => `[${x.title}](${x.url})\n${x.content ?? x.snippet ?? ''}`),
+        }
       }
     } catch { /* fallthrough */ }
   }
@@ -394,7 +401,12 @@ async function webSearch(query, maxResults = 5) {
       const r = await fetch(url, { signal: AbortSignal.timeout(8000) })
       if (r.ok) {
         const d = await r.json()
-        return (d.organic_results ?? []).slice(0, maxResults).map(x => `[${x.title}](${x.link})\n${x.snippet ?? ''}`)
+        const rows = (d.organic_results ?? []).slice(0, maxResults)
+        return {
+          provider: 'serpapi',
+          sources: rows.map(x => ({ title: x.title ?? '搜尋結果', url: x.link ?? '' })).filter(s => s.url),
+          snippets: rows.map(x => `[${x.title}](${x.link})\n${x.snippet ?? ''}`),
+        }
       }
     } catch { /* fallthrough */ }
   }
@@ -408,10 +420,17 @@ async function webSearch(query, maxResults = 5) {
         .slice(0, maxResults).map(m => m[1].replace(/<[^>]+>/g, '').trim())
       const titles = [...html.matchAll(/<a class="result__a"[^>]*>([\s\S]*?)<\/a>/g)]
         .slice(0, maxResults).map(m => m[1].replace(/<[^>]+>/g, '').trim())
-      return snippets.map((s, i) => `${titles[i] ?? '搜尋結果'}\n${s}`)
+      return {
+        provider: 'duckduckgo',
+        sources: [],
+        snippets: snippets.map((s, i) => `${titles[i] ?? '搜尋結果'}\n${s}`),
+      }
     }
   } catch { /* fallthrough */ }
-  return ['[搜尋失敗] 請設定 TAVILY_API_KEY 環境變數以啟用可靠的網路搜尋']
+  return {
+    ...empty,
+    snippets: ['[搜尋失敗] 請設定 TAVILY_API_KEY 環境變數以啟用可靠的網路搜尋'],
+  }
 }
 
 const AGENT_SYSTEMS = {
@@ -515,6 +534,26 @@ const DEFAULT_ROUTING = {
   analyst:          ['分析', '數據', '報告', '比較', '統計', '趨勢', '評估', '風險', '調查', '木桶理論'],
   code_reviewer:    ['code review', 'review', '審查程式', '看程式', '程式碼審查', '重構建議', 'refactor'],
   security_auditor: ['資安', 'security', '漏洞', 'vulnerability', 'xss', 'injection', 'cve', '資訊安全', '安全檢查', '安全審查', 'owasp', '隔離', '跨品牌'],
+}
+
+function needsWebSearch(text) {
+  const t = text.toLowerCase()
+  const kws = AGENTS_CONFIG.agents?.orchestrator?.routing_triggers?.researcher ?? DEFAULT_ROUTING.researcher
+  return kws.some(kw => t.includes(kw.toLowerCase()))
+}
+
+function mergeAgentRoute(llmIds, userMsg) {
+  const ids = [...llmIds]
+  if (needsWebSearch(userMsg) && !ids.includes('researcher')) ids.unshift('researcher')
+  return [...new Set(ids)].slice(0, 3)
+}
+
+function buildBrainMeta(memories) {
+  return {
+    memories_used: memories.length,
+    memory_preview: memories.slice(0, 2).map(m => String(m).slice(0, 100)),
+    remembered: true,
+  }
 }
 
 /**
@@ -656,8 +695,8 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
     ? `\n\n【孟一的長期記憶（累積自歷次對話）】\n${memories.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n`
     : ''
 
-  // ② 梅蘭作為 COO 決定要調用哪些子 Agent（LLM 路由）
-  const agentIds = await detectAgentsLLM(userMsg, memoryBlock)
+  // ② 梅蘭作為 COO 決定要調用哪些子 Agent（LLM 路由 + 搜尋關鍵字保底）
+  const agentIds = mergeAgentRoute(await detectAgentsLLM(userMsg, memoryBlock), userMsg)
   console.log(`[orchestrate] 梅蘭路由決策: [${agentIds.join(', ') || '直接回答'}] | 記憶: ${memories.length} 條`)
 
   // ③ 若梅蘭決定直接回答（無子 Agent），由梅蘭 COO 本人回覆
@@ -672,6 +711,7 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
         model: r.model,
         agents: [{ id: 'coach', icon: '🧘', display: '梅蘭', reply: r.reply, model: r.model }],
         memories_used: memories.length,
+        brain: buildBrainMeta(memories),
       })
     } catch (e) {
       return res.status(502).json({ error: '上游 LLM 服務暫時不可用，請稍後再試' })
@@ -680,10 +720,17 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
 
   // ④ 若 researcher 被調用，先執行網路搜尋
   let searchResults = ''
+  let webSearchMeta = null
   if (agentIds.includes('researcher')) {
-    const results = await webSearch(userMsg, 5)
-    searchResults = `\n\n【網路搜尋結果（關鍵字：${userMsg.slice(0, 60)}）】\n${results.join('\n\n')}\n`
-    console.log(`[orchestrate] 研究員網路搜尋完成，取得 ${results.length} 筆結果`)
+    const search = await webSearch(userMsg, 5)
+    webSearchMeta = {
+      query: userMsg.slice(0, 120),
+      provider: search.provider,
+      sources: search.sources,
+      result_count: search.snippets.length,
+    }
+    searchResults = `\n\n【網路搜尋結果（關鍵字：${userMsg.slice(0, 60)}）】\n${search.snippets.join('\n\n')}\n`
+    console.log(`[orchestrate] 研究員網路搜尋完成（${search.provider}），取得 ${search.snippets.length} 筆結果`)
   }
 
   // ⑤ 子 Agent 並行呼叫（system prompt 含記憶）
@@ -754,6 +801,8 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
     model: finalModel,
     agents: succeeded,
     memories_used: memories.length,
+    brain: buildBrainMeta(memories),
+    ...(webSearchMeta ? { web_search: webSearchMeta } : {}),
     ...(codeBlock ? { can_execute: true, execute_code: codeBlock } : {}),
   })
 })

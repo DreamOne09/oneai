@@ -13,6 +13,7 @@ interface Memory {
 interface BrainSummary {
   status: string
   total_memories: number
+  summary?: string
 }
 
 function authHeader(): Record<string, string> {
@@ -112,6 +113,10 @@ export function BrainPanel({ onClose, inline = false }: BrainPanelProps) {
           </div>
           <button className="brain-panel-close" onClick={onClose}>✕</button>
         </div>
+
+        {summary?.summary && (
+          <div className="brain-summary glass">{summary.summary}</div>
+        )}
 
         {/* 搜尋列 */}
         <div className="brain-panel-search">

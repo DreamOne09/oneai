@@ -7,6 +7,8 @@ interface PushOpts {
   agentIcon?: string
   agentDisplay?: string
   memoriesUsed?: number
+  searchSources?: import('../types').SearchSource[]
+  brainLearned?: boolean
 }
 
 interface OneAIState {
@@ -64,6 +66,8 @@ export const useOneAI = create<OneAIState>()(
               agentIcon: opts?.agentIcon,
               agentDisplay: opts?.agentDisplay,
               memoriesUsed: opts?.memoriesUsed,
+              searchSources: opts?.searchSources,
+              brainLearned: opts?.brainLearned,
             },
             ...st.activities,
           ].slice(0, 80),
