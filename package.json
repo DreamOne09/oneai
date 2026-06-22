@@ -9,7 +9,7 @@
     "bridge/*"
   ],
   "scripts": {
-    "start": "npm run start -w services/approval",
+    "start": "node services/approval/src/server.js",
     "model": "node scripts/oneai-model.mjs",
     "pwa:dev": "npm run dev -w apps/oneai-pwa",
     "pwa:build": "npm run build -w apps/oneai-pwa",
