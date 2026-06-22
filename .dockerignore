@@ -5,15 +5,19 @@
 *.log
 
 brain/
-apps/
 hands/
-services/
 docs/
 canvases/
 mcps/
 terminals/
 agent-tools/
 agent-transcripts/
+
+# monorepo 子服務：排除大部分，但保留 Zeabur 部署需要的
+apps/
+!apps/oneai-pwa/
+services/
+!services/approval/
 
 node_modules/
 **/node_modules/
