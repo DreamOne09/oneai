@@ -18,6 +18,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 import config
+import chromadb
 from query_vault import query as _query, DEFAULT_MAX_CHARS
 from remember import remember as _remember
 
@@ -50,7 +51,15 @@ app = FastAPI(title="OneAI RAG", version="0.1.0", lifespan=lifespan)
 
 @app.get("/health")
 def health():
-    return {"ok": True, "collection": config.COLLECTION}
+    try:
+        client = chromadb.PersistentClient(path=str(config.CHROMA_DIR))
+        col = client.get_or_create_collection(
+            name=config.COLLECTION, embedding_function=config.get_embedding_function()
+        )
+        count = col.count()
+    except Exception:
+        count = 0
+    return {"ok": True, "collection": config.COLLECTION, "doc_count": count, "total": count}
 
 
 @app.post("/query")

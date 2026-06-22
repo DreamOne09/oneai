@@ -35,12 +35,13 @@ export interface WebSearchMeta {
 export interface OrchestrateResult {
   reply: string
   model: string | null
-  agents: AgentContrib[]   // 參與本次回覆的子 Agent 列表
-  memories_used?: number   // 本次注入了幾條長期記憶
+  agents: AgentContrib[]
+  memories_used?: number
   brain?: BrainMeta
   web_search?: WebSearchMeta
-  can_execute?: boolean    // Engineer 回覆含可執行程式碼
-  execute_code?: string    // 擷取的程式碼（供 Cursor dispatch）
+  synthesis?: boolean
+  can_execute?: boolean
+  execute_code?: string
 }
 
 /** 透過 Orchestrator 發送訊息，回傳合成回覆 + 參與的 Agent 清單。 */
@@ -75,7 +76,7 @@ export async function orchestrate(
   const data = await res.json() as {
     reply?: string; model?: string; agents?: AgentContrib[]
     memories_used?: number; brain?: BrainMeta; web_search?: WebSearchMeta
-    can_execute?: boolean; execute_code?: string
+    can_execute?: boolean; execute_code?: string; synthesis?: boolean
   }
   return {
     reply: data.reply ?? '(無回覆)',
@@ -84,6 +85,7 @@ export async function orchestrate(
     memories_used: data.memories_used ?? data.brain?.memories_used ?? 0,
     brain: data.brain,
     web_search: data.web_search,
+    synthesis: data.synthesis ?? (data.agents?.length ?? 0) > 1,
     can_execute: data.can_execute ?? false,
     execute_code: data.execute_code,
   }

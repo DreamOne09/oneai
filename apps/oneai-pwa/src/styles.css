@@ -297,6 +297,15 @@ body {
 }
 .source-link:hover { opacity: 1; text-decoration: underline; }
 
+.msg-experts { margin-top: 6px; padding: 0 4px; }
+.expert-snippet {
+  margin-top: 6px; padding: 8px 10px; border-radius: 10px;
+  background: rgba(8, 18, 38, 0.55); border: 1px solid rgba(255,255,255,0.06);
+  font-size: 12px; line-height: 1.5;
+}
+.expert-label { display: block; font-weight: 600; margin-bottom: 4px; color: var(--violet); }
+.expert-text { color: var(--muted); white-space: pre-wrap; }
+
 /* memory / search 氣泡樣式 */
 .kind-memory.msg-bubble--agent { border-left-color: rgba(192, 132, 252, 0.6) !important; font-size: 12.5px; opacity: 0.92; }
 .kind-search.msg-bubble--agent  { border-left-color: rgba(56, 189, 248, 0.6) !important; font-size: 12.5px; opacity: 0.92; }

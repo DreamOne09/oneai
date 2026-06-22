@@ -9,6 +9,7 @@ interface PushOpts {
   memoriesUsed?: number
   searchSources?: import('../types').SearchSource[]
   brainLearned?: boolean
+  agentDetails?: import('../types').AgentDetail[]
 }
 
 interface OneAIState {
@@ -68,6 +69,7 @@ export const useOneAI = create<OneAIState>()(
               memoriesUsed: opts?.memoriesUsed,
               searchSources: opts?.searchSources,
               brainLearned: opts?.brainLearned,
+              agentDetails: opts?.agentDetails,
             },
             ...st.activities,
           ].slice(0, 80),

@@ -14,6 +14,13 @@ export interface SearchSource {
   url: string
 }
 
+export interface AgentDetail {
+  id: string
+  icon: string
+  display: string
+  reply: string
+}
+
 export interface ActivityItem {
   id: string
   kind: ActivityKind
@@ -26,6 +33,7 @@ export interface ActivityItem {
   memoriesUsed?: number
   searchSources?: SearchSource[]
   brainLearned?: boolean
+  agentDetails?: AgentDetail[]
 }
 
 export type ApprovalAction =

@@ -6,6 +6,18 @@ import { dirname, join } from 'node:path'
 import { store } from './store.js'
 import { publishApproval, notify } from './ntfy.js'
 import { sendPush } from './push.js'
+import {
+  filterMemories,
+  isSmallTalk,
+  needsExplicitRemember,
+  cleanSearchQuery,
+  buildMemoryBlock,
+  shouldRemember,
+  formatRememberPayload,
+  buildBrainMeta,
+  mergeAgentRoute as mergeBrainRoute,
+  enrichSearchReply,
+} from './brain-intel.js'
 
 const app = express()
 app.use(express.json({ limit: '256kb' }))
@@ -526,7 +538,7 @@ const AGENT_SYSTEMS = {
 
 // 關鍵字路由（若未能從 agents.json 讀到）
 const DEFAULT_ROUTING = {
-  butler:           ['記憶', '記得', '你知道我', '腦中', '管家', '整理記憶', '知識庫', '你記得', '你學到', '你知道什麼', '備忘', '我說過', '之前提到', '數位大腦', '大腦狀態'],
+  butler:           ['記憶', '記得', '記住', '你知道我', '腦中', '管家', '整理記憶', '知識庫', '你記得', '你學到', '你知道什麼', '備忘', '我說過', '之前提到', '數位大腦', '大腦狀態', '幫我記', '别忘了', '別忘了'],
   researcher:       ['搜尋', '查一下', '最新', '新聞', '市場研究', '找資料', '調查', '競品', '幫我看', '上網', '查查', 'search', '參考資料', '有沒有'],
   engineer:         ['程式', 'code', 'bug', '部署', 'deploy', '架構', 'api', '資料庫', 'docker', 'git', 'terminal', 'script', '修', '錯誤', 'dropout', '琢奧'],
   pm:               ['策略', '產品', '商業', 'okr', '路線圖', '競爭', '用戶', '定價', '市場', '提案', '簡報', '客戶', 'dreamone', '夢想一號', '木桶', '峰終', '三爽'],
@@ -536,31 +548,7 @@ const DEFAULT_ROUTING = {
   security_auditor: ['資安', 'security', '漏洞', 'vulnerability', 'xss', 'injection', 'cve', '資訊安全', '安全檢查', '安全審查', 'owasp', '隔離', '跨品牌'],
 }
 
-function needsWebSearch(text) {
-  const t = text.toLowerCase()
-  const kws = AGENTS_CONFIG.agents?.orchestrator?.routing_triggers?.researcher ?? DEFAULT_ROUTING.researcher
-  return kws.some(kw => t.includes(kw.toLowerCase()))
-}
-
-function mergeAgentRoute(llmIds, userMsg) {
-  const ids = [...llmIds]
-  if (needsWebSearch(userMsg) && !ids.includes('researcher')) ids.unshift('researcher')
-  return [...new Set(ids)].slice(0, 3)
-}
-
-function memoryToText(m) {
-  if (typeof m === 'string') return m
-  if (m && typeof m === 'object') return m.text ?? m.content ?? m.snippet ?? JSON.stringify(m)
-  return String(m ?? '')
-}
-
-function buildBrainMeta(memories) {
-  return {
-    memories_used: memories.length,
-    memory_preview: memories.slice(0, 2).map(m => memoryToText(m).slice(0, 100)),
-    remembered: true,
-  }
-}
+const RESEARCH_KWS = AGENTS_CONFIG.agents?.orchestrator?.routing_triggers?.researcher ?? DEFAULT_ROUTING.researcher
 
 /**
  * 以關鍵字做快速路由（備用，當 LLM 路由失敗時使用）。
@@ -572,7 +560,7 @@ function detectAgentsFallback(text) {
   for (const [agentId, keywords] of Object.entries(routing)) {
     if (keywords.some(kw => t.includes(kw.toLowerCase()))) matched.push(agentId)
   }
-  return matched.length ? matched : ['assistant']
+  return matched.length ? matched : []
 }
 
 const AVAILABLE_AGENTS = Object.keys(AGENTS_META).filter(id => id !== 'assistant')
@@ -694,58 +682,94 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
   if (!OPENROUTER_KEY) return res.status(503).json({ error: '未設定 OPENAI_API_KEY' })
 
   const userMsg = messages[messages.length - 1]?.content ?? ''
+  const smallTalk = isSmallTalk(userMsg)
+  const explicitRemember = needsExplicitRemember(userMsg)
 
-  // ① RAG 記憶查詢（與路由決策並行）
-  const memories = await ragQuery(userMsg, 4)
-  const memoryBlock = memories.length > 0
-    ? `\n\n【孟一的長期記憶（累積自歷次對話）】\n${memories.map((m, i) => `${i + 1}. ${memoryToText(m)}`).join('\n')}\n`
-    : ''
+  const finishOrchestrate = (payload) => {
+    res.json(payload)
+  }
 
-  // ② 梅蘭作為 COO 決定要調用哪些子 Agent（LLM 路由 + 搜尋關鍵字保底）
-  const agentIds = mergeAgentRoute(await detectAgentsLLM(userMsg, memoryBlock), userMsg)
-  console.log(`[orchestrate] 梅蘭路由決策: [${agentIds.join(', ') || '直接回答'}] | 記憶: ${memories.length} 條`)
+  const persistIfNeeded = (reply, agentIds = []) => {
+    const remembered = shouldRemember(userMsg, reply, { explicitRemember, smallTalk })
+    if (remembered) {
+      const p = formatRememberPayload(userMsg, reply, explicitRemember)
+      ragRemember(p.text, p.title)
+    }
+    return remembered
+  }
 
-  // ③ 若梅蘭決定直接回答（無子 Agent），由梅蘭 COO 本人回覆
-  if (agentIds.length === 0) {
-    const meilanSystem = AGENT_SYSTEMS.coach + memoryBlock  // coach = 梅蘭 COO 人格
-    const meilanMsgs = [{ role: 'system', content: meilanSystem }, ...messages]
+  // ① 快徑：寒暄 → 梅蘭直答（不查 RAG、不 LLM 路由）
+  if (smallTalk && !explicitRemember) {
+    const meilanMsgs = [{ role: 'system', content: AGENT_SYSTEMS.coach }, ...messages]
     try {
       const r = await callOpenRouter(CHAT_DEFAULT_MODEL, meilanMsgs)
-      ragRemember(`[梅蘭直答 ${new Date().toISOString().slice(0, 10)}]\n問：${userMsg}\n答：${r.reply.slice(0, 600)}`, `meilan-${Date.now()}`)
-      return res.json({
+      return finishOrchestrate({
         reply: r.reply,
         model: r.model,
-        agents: [{ id: 'coach', icon: '🧘', display: '梅蘭', reply: r.reply, model: r.model }],
-        memories_used: memories.length,
-        brain: buildBrainMeta(memories),
+        agents: [{ id: 'coach', icon: '🌸', display: '梅蘭', reply: r.reply, model: r.model }],
+        memories_used: 0,
+        brain: buildBrainMeta([], false),
+        synthesis: false,
       })
-    } catch (e) {
+    } catch {
       return res.status(502).json({ error: '上游 LLM 服務暫時不可用，請稍後再試' })
     }
   }
 
-  // ④ 若 researcher 被調用，先執行網路搜尋
+  // ② RAG 記憶（過濾低相關 + 寒暄跳過）
+  const memories = filterMemories(await ragQuery(userMsg, 4), userMsg)
+  const memoryBlock = buildMemoryBlock(memories)
+
+  // ③ 梅蘭路由（LLM + 關鍵字保底）
+  const agentIds = mergeBrainRoute(
+    await detectAgentsLLM(userMsg, memoryBlock),
+    userMsg,
+    RESEARCH_KWS,
+    DEFAULT_ROUTING.butler,
+  )
+  console.log(`[orchestrate] 路由: [${agentIds.join(', ') || '梅蘭直答'}] | 記憶: ${memories.length} 條`)
+
+  // ④ 梅蘭直答（無子 Agent）
+  if (agentIds.length === 0) {
+    const meilanMsgs = [{ role: 'system', content: AGENT_SYSTEMS.coach + memoryBlock }, ...messages]
+    try {
+      const r = await callOpenRouter(CHAT_DEFAULT_MODEL, meilanMsgs)
+      const remembered = persistIfNeeded(r.reply, [])
+      return finishOrchestrate({
+        reply: r.reply,
+        model: r.model,
+        agents: [{ id: 'coach', icon: '🌸', display: '梅蘭', reply: r.reply, model: r.model }],
+        memories_used: memories.length,
+        brain: buildBrainMeta(memories, remembered),
+        synthesis: false,
+      })
+    } catch {
+      return res.status(502).json({ error: '上游 LLM 服務暫時不可用，請稍後再試' })
+    }
+  }
+
+  // ⑤ 網路搜尋（清理 query）
   let searchResults = ''
   let webSearchMeta = null
   if (agentIds.includes('researcher')) {
-    const search = await webSearch(userMsg, 5)
+    const q = cleanSearchQuery(userMsg)
+    const search = await webSearch(q, 5)
     webSearchMeta = {
-      query: userMsg.slice(0, 120),
+      query: q.slice(0, 120),
       provider: search.provider,
       sources: search.sources,
       result_count: search.snippets.length,
     }
-    searchResults = `\n\n【網路搜尋結果（關鍵字：${userMsg.slice(0, 60)}）】\n${search.snippets.join('\n\n')}\n`
-    console.log(`[orchestrate] 研究員網路搜尋完成（${search.provider}），取得 ${search.snippets.length} 筆結果`)
+    searchResults = `\n\n【網路搜尋結果（${q.slice(0, 80)}）】\n${search.snippets.join('\n\n')}\n`
+    console.log(`[orchestrate] 搜尋完成 ${search.provider} · ${search.snippets.length} 筆`)
   }
 
-  // ⑤ 子 Agent 並行呼叫（system prompt 含記憶）
+  // ⑥ 子 Agent 並行
   const subResults = await Promise.allSettled(
     agentIds.map(async (id) => {
       const agentCfg = AGENTS_CONFIG.agents?.[id] ?? {}
       const meta = AGENTS_META[id] ?? { icon: '🤖', display: id }
       const baseSystem = AGENT_SYSTEMS[id] ?? `${MENGYI_BRIEF}\n你是孟一的 AI 助理，用繁體中文簡潔回覆。`
-      // researcher 額外注入搜尋結果
       const agentSystem = baseSystem + memoryBlock + (id === 'researcher' ? searchResults : '')
       const agentModel = agentCfg.model ?? CHAT_DEFAULT_MODEL
       const finalMsgs = [{ role: 'system', content: agentSystem }, ...messages]
@@ -761,53 +785,55 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
         }
       }
       throw new Error(`[${id}] 所有模型失敗: ${lastErr}`)
-    })
+    }),
   )
 
-  const succeeded = subResults
-    .filter(r => r.status === 'fulfilled')
-    .map(r => r.value)
-
+  const succeeded = subResults.filter(r => r.status === 'fulfilled').map(r => r.value)
   if (succeeded.length === 0) {
     return res.status(502).json({ error: '上游 LLM 服務暫時不可用，請稍後再試' })
   }
 
-  // ⑤ 梅蘭作為 COO 合成所有子 Agent 回覆（不是無名 Orchestrator）
-  let finalReply, finalModel
-  if (succeeded.length === 1) {
-    finalReply = succeeded[0].reply
+  // ⑦ 梅蘭合成（多 Agent 或含搜尋時一律合成，手機只顯示一則主回覆）
+  let finalReply
+  let finalModel
+  const needsSynth = succeeded.length > 1 || (webSearchMeta && succeeded.length >= 1)
+
+  if (!needsSynth) {
+    finalReply = enrichSearchReply(succeeded[0].reply, webSearchMeta)
     finalModel = succeeded[0].model
   } else {
     const synthContext = succeeded.map(a => `[${a.icon} ${a.display}]\n${a.reply}`).join('\n\n---\n\n')
-    const synthSystem = `${AGENT_SYSTEMS.coach}${memoryBlock}
-作為孟一的營運長，你剛剛調用了以下專家。現在用你自己的口吻（嚴格、直率、繁體中文），整合這些專家意見，提供最終建議。避免重複，只保留最關鍵的行動點。`
+    const synthSystem = `${AGENT_SYSTEMS.coach}${memoryBlock}${searchResults}
+作為孟一的營運長，整合以下專家意見，用嚴格直率的繁體中文給出最終建議。
+若含搜尋結果，必須在回覆中列出 2-3 個關鍵發現並提及來源。避免重複，保留行動要點。`
     const synthMsgs = [
       { role: 'system', content: synthSystem },
-      { role: 'user', content: `孟一的問題：${userMsg}\n\n各專家回覆：\n${synthContext}\n\n你的最終整合：` },
+      { role: 'user', content: `孟一：${userMsg}\n\n專家回覆：\n${synthContext}\n\n你的整合：` },
     ]
     try {
       const synth = await callOpenRouter(CHAT_DEFAULT_MODEL, synthMsgs)
-      finalReply = synth.reply
+      finalReply = enrichSearchReply(synth.reply, webSearchMeta)
       finalModel = synth.model
     } catch {
-      finalReply = succeeded.map(a => `**${a.icon} ${a.display}：** ${a.reply}`).join('\n\n')
+      finalReply = enrichSearchReply(
+        succeeded.map(a => `**${a.icon} ${a.display}：** ${a.reply}`).join('\n\n'),
+        webSearchMeta,
+      )
       finalModel = succeeded[0].model
     }
   }
 
-  // ⑥ 存回記憶（非同步，不阻塞）
-  ragRemember(`[對話記憶 ${new Date().toISOString().slice(0, 10)}]\n問：${userMsg}\n答：${finalReply.slice(0, 600)}`, `chat-${Date.now()}`)
-
-  // ⑦ 偵測 Engineer 程式碼
+  const remembered = persistIfNeeded(finalReply, agentIds)
   const engineerAgent = succeeded.find(a => a.id === 'engineer')
   const codeBlock = engineerAgent ? extractCodeBlock(engineerAgent.reply) : null
 
-  res.json({
+  finishOrchestrate({
     reply: finalReply,
     model: finalModel,
     agents: succeeded,
     memories_used: memories.length,
-    brain: buildBrainMeta(memories),
+    brain: buildBrainMeta(memories, remembered),
+    synthesis: needsSynth,
     ...(webSearchMeta ? { web_search: webSearchMeta } : {}),
     ...(codeBlock ? { can_execute: true, execute_code: codeBlock } : {}),
   })

@@ -29,6 +29,7 @@ function agentColor(id?: string) {
 // ── 單則訊息泡泡 ──────────────────────────────────────────────────────────────
 function MessageBubble({ item }: { item: ActivityItem }) {
   const [expanded, setExpanded] = useState(false)
+  const [showExperts, setShowExperts] = useState(false)
   const isUser = item.kind === 'user' || item.agentId === 'user'
   const isLong = item.text.length > COLLAPSE_THRESHOLD
   const displayText = isLong && !expanded ? item.text.slice(0, COLLAPSE_THRESHOLD) + '…' : item.text
@@ -93,6 +94,20 @@ function MessageBubble({ item }: { item: ActivityItem }) {
               >
                 🔗 {s.title.slice(0, 40)}{s.title.length > 40 ? '…' : ''}
               </a>
+            ))}
+          </div>
+        )}
+
+        {item.agentDetails && item.agentDetails.length > 0 && (
+          <div className="msg-experts">
+            <button type="button" className="msg-expand" onClick={() => setShowExperts(v => !v)}>
+              {showExperts ? '收合專家 ↑' : `查看 ${item.agentDetails!.length} 位專家 ↓`}
+            </button>
+            {showExperts && item.agentDetails.map(a => (
+              <div key={a.id} className="expert-snippet">
+                <span className="expert-label">{a.icon} {a.display}</span>
+                <span className="expert-text">{a.reply.slice(0, 200)}{a.reply.length > 200 ? '…' : ''}</span>
+              </div>
             ))}
           </div>
         )}

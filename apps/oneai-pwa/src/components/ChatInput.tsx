@@ -10,8 +10,21 @@ const PENDING_STEPS = [
   '🧠 調取長期記憶…',
   '🌐 搜尋最新資料…',
   '🤖 多 Agent 協作…',
-  '✨ 整合回覆…',
+  '✨ 梅蘭整合…',
 ]
+
+const PENDING_BY_INTENT: [RegExp, string[]][] = [
+  [/搜尋|搜索|search|查一下/i, ['🔍 分析意圖…', '🌐 搜尋最新資料…', '🧠 對照記憶…', '✨ 梅蘭整合…']],
+  [/記得|記憶|記住|腦中/i, ['🔍 分析意圖…', '🫀 管家調閱記憶…', '✨ 整理回覆…']],
+  [/分析|策略|程式|code|部署/i, ['🔍 分析意圖…', '🤖 專家協作…', '✨ 梅蘭整合…']],
+]
+
+function pendingStepsFor(msg: string) {
+  for (const [re, steps] of PENDING_BY_INTENT) {
+    if (re.test(msg)) return steps
+  }
+  return PENDING_STEPS
+}
 
 const QUICK_CHIPS = [
   { label: '🌐 搜尋', hint: '搜尋 ' },
@@ -169,10 +182,11 @@ export default function ChatInput() {
     pushActivity('user', msg, { agentId: 'user', agentIcon: '👤', agentDisplay: '你' })
     setStatus('thinking')
     let pendingIdx = 0
-    setPending(PENDING_STEPS[0])
+    const steps = pendingStepsFor(msg)
+    setPending(steps[0])
     const pendingTimer = window.setInterval(() => {
-      pendingIdx = (pendingIdx + 1) % PENDING_STEPS.length
-      setPending(PENDING_STEPS[pendingIdx])
+      pendingIdx = (pendingIdx + 1) % steps.length
+      setPending(steps[pendingIdx])
     }, 1800)
 
     const history = historyRef.current.slice(-12)
@@ -207,34 +221,25 @@ export default function ChatInput() {
       }
 
       if (result.brain?.remembered) {
-        pushActivity('memory', '📝 已寫入長期記憶，下次對話會記得', { brainLearned: true })
+        pushActivity('memory', '📝 已寫入長期記憶', { brainLearned: true })
       }
 
-      const hasMultiple = result.agents.length > 1
+      const showSynthesis = result.synthesis || result.agents.length > 1
 
-      if (hasMultiple) {
-        // 多 Agent：每個 agent 各自顯示一個氣泡（可篩選）
-        for (const agent of result.agents) {
-          pushActivity('result', agent.reply, {
-            agentId: agent.id,
-            agentIcon: agent.icon,
-            agentDisplay: agent.display,
-          })
-        }
-        // Orchestrator 合成回覆
+      if (showSynthesis) {
         pushActivity('result', result.reply, {
-          agentId: 'orchestrator',
-          agentIcon: '🧠',
-          agentDisplay: 'OneAI 合成',
+          agentId: 'coach',
+          agentIcon: '🌸',
+          agentDisplay: '梅蘭',
           memoriesUsed: memCount,
+          agentDetails: result.agents,
         })
       } else {
-        // 單 Agent：直接顯示
         const agent: AgentContrib | undefined = result.agents[0]
         pushActivity('result', result.reply, {
-          agentId: agent?.id ?? 'assistant',
-          agentIcon: agent?.icon ?? '🧠',
-          agentDisplay: agent?.display ?? 'OneAI',
+          agentId: agent?.id ?? 'coach',
+          agentIcon: agent?.icon ?? '🌸',
+          agentDisplay: agent?.display ?? '梅蘭',
           memoriesUsed: memCount,
         })
       }
