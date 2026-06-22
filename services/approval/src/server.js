@@ -548,10 +548,16 @@ function mergeAgentRoute(llmIds, userMsg) {
   return [...new Set(ids)].slice(0, 3)
 }
 
+function memoryToText(m) {
+  if (typeof m === 'string') return m
+  if (m && typeof m === 'object') return m.text ?? m.content ?? m.snippet ?? JSON.stringify(m)
+  return String(m ?? '')
+}
+
 function buildBrainMeta(memories) {
   return {
     memories_used: memories.length,
-    memory_preview: memories.slice(0, 2).map(m => String(m).slice(0, 100)),
+    memory_preview: memories.slice(0, 2).map(m => memoryToText(m).slice(0, 100)),
     remembered: true,
   }
 }
@@ -692,7 +698,7 @@ app.post('/chat/orchestrate', requireChatToken, chatRateLimit, async (req, res) 
   // ① RAG 記憶查詢（與路由決策並行）
   const memories = await ragQuery(userMsg, 4)
   const memoryBlock = memories.length > 0
-    ? `\n\n【孟一的長期記憶（累積自歷次對話）】\n${memories.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n`
+    ? `\n\n【孟一的長期記憶（累積自歷次對話）】\n${memories.map((m, i) => `${i + 1}. ${memoryToText(m)}`).join('\n')}\n`
     : ''
 
   // ② 梅蘭作為 COO 決定要調用哪些子 Agent（LLM 路由 + 搜尋關鍵字保底）
