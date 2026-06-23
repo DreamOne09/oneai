@@ -1,9 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { useOneAI } from '../state/store'
-import { orchestrateStream, type AgentContrib, type History, type OrchestrateResult } from '../lib/librechat'
-
-const APPROVAL_BASE = (import.meta.env.VITE_APPROVAL_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
-const APPROVAL_TOKEN = import.meta.env.VITE_APPROVAL_TOKEN as string | undefined
+import { orchestrateStream, type AgentContrib, type History, type OrchestrateResult } from '../lib/orchestrate-client'
+import { dispatchTask, pollTaskUntilDone } from '../lib/task-client'
 
 const PHASE_FALLBACK: Record<string, string> = {
   rag_start: '🧠 調取長期記憶…',
@@ -58,43 +56,6 @@ const speechSupported = !!(
   (window as unknown as Record<string, unknown>)['SpeechRecognition'] ??
   (window as unknown as Record<string, unknown>)['webkitSpeechRecognition']
 )
-
-/** 派送任務到佇列，回傳 task ID */
-async function dispatchTask(type: string, payload: Record<string, unknown>): Promise<string> {
-  const r = await fetch(`${APPROVAL_BASE}/tasks`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(APPROVAL_TOKEN ? { Authorization: `Bearer ${APPROVAL_TOKEN}` } : {}),
-    },
-    body: JSON.stringify({ type, payload }),
-  })
-  if (!r.ok) throw new Error(`dispatch failed: ${r.status}`)
-  const data = await r.json() as { task_id?: string; id?: string }
-  return data.task_id ?? data.id ?? ''
-}
-
-/** 輪詢任務直到完成（最多等 90 秒），回傳結果摘要 */
-async function pollTask(taskId: string, onStatus?: (s: string) => void): Promise<string> {
-  const deadline = Date.now() + 90_000
-  while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 2500))
-    const r = await fetch(`${APPROVAL_BASE}/tasks/${taskId}`, {
-      headers: APPROVAL_TOKEN ? { Authorization: `Bearer ${APPROVAL_TOKEN}` } : {},
-    })
-    if (!r.ok) continue
-    const data = await r.json() as { status?: string; result?: { summary?: string; stdout_tail?: string; stderr_tail?: string } }
-    onStatus?.(data.status ?? '...')
-    if (data.status === 'done' || data.status === 'error') {
-      const out = data.result?.stdout_tail || data.result?.summary || ''
-      const err = data.result?.stderr_tail || ''
-      return data.status === 'done'
-        ? `✅ 完成${out ? `\n${out.slice(0, 300)}` : ''}`
-        : `❌ 失敗${err ? `\n${err.slice(0, 200)}` : ''}`
-    }
-  }
-  return '⏱ 等待逾時（90s），請查看桌機狀態'
-}
 
 export default function ChatInput() {
   const [text, setText] = useState('')
@@ -262,7 +223,7 @@ export default function ChatInput() {
       })
       setExecState('running')
 
-      pollTask(taskId, (s) => { if (s === 'running') setExecState('running') }).then(summary => {
+      pollTaskUntilDone(taskId, { onStatus: (s) => { if (s === 'running') setExecState('running') } }).then(({ summary }) => {
         pushActivity('result', `Cursor 任務 [${taskId.slice(0, 8)}]\n${summary}`, {
           agentId: 'engineer', agentIcon: '💻', agentDisplay: '工程師',
         })

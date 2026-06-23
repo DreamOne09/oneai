@@ -69,7 +69,6 @@ export interface SystemStatus {
     approval_svc: ServiceInfo
     openrouter: ServiceInfo
     rag_svc: ServiceInfo
-    librechat: ServiceInfo
   }
   agents: AgentInfo[]
 }

@@ -44,8 +44,6 @@ node bridge/mcp-core/src/server.js
 
 > `VAULT_MAX_CHARS` 控制 `vault_query` 整體回傳字元預算（預設 8000），避免 LibreChat 把大回傳整包讀進記憶造成 OOM。
 
-### 2. `federation/` — 雲端↔本機通道
+### 2. `_deprecated/federation/` — 已退役
 
-`ruflo.config.example.yaml` 為舊版 mTLS 範本。**建議改用 Tailscale / Headscale（BSD-3）**：自動託管加密 + NAT 穿透，零憑證運維。
-
-詳見 `docs/05-bridge-mcp-federation.md`、`docs/12-antigravity-hands.md`、`docs/14-stack-licensing-research.md`。
+雲↔本機任務改走 **approval-svc `/tasks` + worker.py**。`ruflo.config.example.yaml` 僅作歷史參考。

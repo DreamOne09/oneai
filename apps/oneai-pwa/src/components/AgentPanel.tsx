@@ -7,7 +7,6 @@ const SERVICE_META: Record<string, { label: string; icon: string }> = {
   approval_svc: { label: 'Brain API',   icon: '🧠' },
   openrouter:   { label: 'OpenRouter',  icon: '🤖' },
   rag_svc:      { label: 'RAG / Vault', icon: '📚' },
-  librechat:    { label: 'LibreChat',   icon: '💬' },
 }
 
 const STATUS_COLOR: Record<string, string> = {

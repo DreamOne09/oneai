@@ -132,30 +132,26 @@ else:
     if status == 200:
         check('有 summary 欄位', 'summary' in body or 'note' in body, str(body)[:80])
 
-# ── 5. 聊天代理（基礎）──────────────────────────────────────────────────────
-section('5 · 基礎聊天 /chat  [chat token or approval token]')
-# Try CHAT_TOKEN first, fallback to SVC_TOKEN (deployed service may use fallback)
+# ── 5. 聊天代理（legacy /chat，已 deprecated）────────────────────────────────
+section('5 · Legacy /chat [deprecated → 請用 /chat/orchestrate]')
 for token_label, token in [('CHAT_TOKEN', CHAT_TOKEN), ('SVC_TOKEN fallback', SVC_TOKEN)]:
     if not token:
         continue
     t0 = time.time()
     status, body = req('POST', '/chat',
-        body={'messages': [{'role': 'user', 'content': '你好，請用一句話介紹你自己'}]},
+        body={'messages': [{'role': 'user', 'content': 'ping'}]},
         token=token, timeout=30)
     elapsed = round(time.time() - t0, 1)
     if status == 200:
-        reply = body.get('reply', '')
-        model = body.get('model', '?')
         check(f'HTTP 200 [{token_label}]', True, f'got {status}')
-        check('有回覆文字', len(reply) > 5, f'{reply[:60]}...' if len(reply) > 60 else reply)
-        ok(f'延遲: {elapsed}s  模型: {model}')
+        ok(f'legacy /chat 仍可用（deprecated）延遲: {elapsed}s')
         break
     else:
         ok(f'{token_label} got {status}, trying next...')
 
 # ── 6. 拒絕無效 token ────────────────────────────────────────────────────────
 section('6 · 安全性：無效 token 應被拒絕')
-status, body = req('POST', '/chat',
+status, body = req('POST', '/chat/orchestrate',
     body={'messages': [{'role': 'user', 'content': 'test'}]},
     token='invalid-token-xyz')
 check('拒絕無效 token (401/403)', status in (401, 403), f'got {status}')

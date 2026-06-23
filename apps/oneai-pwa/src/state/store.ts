@@ -36,6 +36,7 @@ interface OneAIState {
   setCurrentModel: (m: string | null) => void
   toggleAgentVisibility: (agentId: string) => void
   openMemoryTab: (query: string) => void
+  requestTab: (tab: NonNullable<OneAIState['requestedTab']>) => void
   clearRequestedTab: () => void
   clearMemoryHighlight: () => void
 }
@@ -106,6 +107,7 @@ export const useOneAI = create<OneAIState>()(
         })),
 
       openMemoryTab: (query) => set({ requestedTab: 'memory', memoryHighlight: query }),
+      requestTab: (tab) => set({ requestedTab: tab }),
       clearRequestedTab: () => set({ requestedTab: null }),
       clearMemoryHighlight: () => set({ memoryHighlight: null }),
     }),

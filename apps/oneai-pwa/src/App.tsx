@@ -4,6 +4,7 @@ import ActivityFeed from './components/ActivityFeed'
 import ApprovalCard from './components/ApprovalCard'
 import ChatInput from './components/ChatInput'
 import AgentGrid from './components/AgentGrid'
+import AgentPanel from './components/AgentPanel'
 import { BrainPanel } from './components/BrainPanel'
 import { AgyPanel } from './components/AgyPanel'
 import DevPanel from './components/DevPanel'
@@ -68,6 +69,7 @@ function SettingsTab({ onShowAgy }: { onShowAgy: () => void }) {
       </div>
       <div className="settings-section">
         <p className="settings-title">系統資訊</p>
+        <AgentPanel />
         <div className="settings-info glass">
           <p>服務端點</p>
           <code>{import.meta.env.VITE_APPROVAL_BASE_URL ?? '未設定'}</code>

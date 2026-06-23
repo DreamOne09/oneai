@@ -79,25 +79,28 @@
 |----|------|------|------|
 | CLN-01 | [x] | **移除** `App.tsx` 的 `connectNtfy()` | 僅 heartbeat 設 connected |
 | CLN-02 | [x] | 後端審核推播：Web Push 為主；ntfy 用 `NTFY_ENABLED=0` 關閉 | 無空跑 ntfy |
-| CLN-03 | [ ] | deprecate `POST /chat`；e2e 改測 orchestrate | 文件標 deprecated |
-| CLN-04 | [ ] | rename `librechat.ts` → `orchestrate-client.ts` | import 全更新 |
-| CLN-05 | [ ] | 刪 `sendMessage` / `sendMessageWithMeta` dead exports | 無引用 |
-| CLN-06 | [ ] | 抽共用 `lib/task-client.ts`（ChatInput + AgyPanel） | DRY |
-| CLN-07 | [x] | 移除或 dev-only **DevPanel**（生產不顯示 ✦） | 正式 UI 乾淨 |
-| CLN-08 | [ ] | 修 **AgentGrid** dispatch（現為 `console.log` 假按鈕） | 真派送或隱藏按鈕 |
-| CLN-09 | [ ] | 刪未使用的 **AgentPanel.tsx** 或重新掛載 | 無死碼 |
-| CLN-10 | [ ] | 統一 RAG host 解析（`RAG_SVC_HOST` vs 硬編 fallback） | 單一 helper |
-| CLN-11 | [ ] | 刪 `server.js` 未使用 brain-intel imports | lint 乾淨 |
-| CLN-12 | [ ] | archive `bridge/federation/` → `bridge/_deprecated/federation/` | 文件指向 worker |
+| CLN-03 | [x] | deprecate `POST /chat`；e2e 改測 orchestrate | Deprecation header |
+| CLN-04 | [x] | rename `librechat.ts` → `orchestrate-client.ts` | import 全更新 |
+| CLN-05 | [x] | 刪 `sendMessage` / `sendMessageWithMeta` dead exports | 無引用 |
+| CLN-06 | [x] | 抽共用 `lib/task-client.ts`（ChatInput + AgyPanel） | DRY |
+| CLN-08 | [x] | 修 **AgentGrid** dispatch（現為 `console.log` 假按鈕） | worker ping / builtin 提示 |
+| CLN-09 | [x] | 刪未使用的 **AgentPanel.tsx** 或重新掛載 | 掛載於設定 Tab |
+| CLN-10 | [x] | 統一 RAG host 解析（`RAG_SVC_HOST` vs 硬編 fallback） | `rag-host.js` |
+| CLN-11 | [x] | 刪 `server.js` 未使用 brain-intel imports | lint 乾淨 |
+| CLN-12 | [x] | archive `bridge/federation/` → `bridge/_deprecated/federation/` | 文件指向 worker |
 
 ---
 
 ## Phase 2 — 架構決策與 Zeabur（P1–P2）
 
+> **ADR（2026-06-23）LibreChat → 退役（選項 A）**  
+> 主介面已改為 OneAI PWA + `/chat/orchestrate`；LibreChat Zeabur 404 且與 PWA 功能重疊。  
+> `bridge/mcp-core` 保留供 Cursor MCP；若未來需桌面聊天可再評估恢復（ARC-03）。
+
 | ID | 狀態 | 任務 | 驗收 |
 |----|------|------|------|
-| ARC-01 | [ ] | **決策 LibreChat**：A 退役 / B 恢復（寫入 ADR 一段） | 團隊一致 |
-| ARC-02 | [ ] | 若 A：從 PWA build、AgentPanel、`/system/status` 移除 LibreChat 幽靈 | 無假 offline 項 |
+| ARC-01 | [x] | **決策 LibreChat**：A 退役 / B 恢復（寫入 ADR 一段） | 2026-06-23 選 A 退役 |
+| ARC-02 | [x] | 若 A：從 PWA build、AgentPanel、`/system/status` 移除 LibreChat 幽靈 | 無假 offline 項 |
 | ARC-03 | [ ] | 若 B：marketplace Mongo + librechat redeploy + mcp-core 驗證 | chat 可登入 |
 | ZBR-01 | [ ] | 刪 4× video-wizard（SUSPENDED） | service list 乾淨 |
 | ZBR-02 | [ ] | 確認刪 app-gateway-v2（無網域） | — |
@@ -213,7 +216,7 @@ Day 7  TST-01~03  10 情境 ≥8 + 手機實機
 | 日期 | 完成 ID | 備註 |
 |------|---------|------|
 | 2026-06-23 | DOC-* | 文件大整理（00/09/10/17/18、README、deploy-state） |
-| 2026-06-23 | DEP-01~08, SEC-02~04, DKR-*, CLN-01/02/07, G-01, TST-01 | push `d2d76d1`；8/10 情境通過 |
+| 2026-06-23 | CLN-03~12, ARC-01/02 | orchestrate-client、task-client、LibreChat 退役 |
 
 ---
 

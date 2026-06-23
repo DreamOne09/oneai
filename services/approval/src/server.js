@@ -7,25 +7,12 @@ import { store } from './store.js'
 import { publishApproval, notify } from './ntfy.js'
 import { sendPush } from './push.js'
 import {
-  filterMemories,
-  isSmallTalk,
-  needsExplicitRemember,
-  cleanSearchQuery,
-  buildMemoryBlock,
-  shouldRemember,
-  formatRememberPayload,
-  buildBrainMeta,
-  mergeAgentRoute as mergeBrainRoute,
-  enrichSearchReply,
-  enforceSearchReply,
-  buildWorkerContext,
-  classifyMemoryKind,
-  memoryToText,
   memoryScore,
   DEDUP_SCORE,
   PHASE_LABELS,
 } from './brain-intel.js'
 import { runOrchestrateTurn } from './orchestrate-harness.js'
+import { getRagBaseUrl } from './rag-host.js'
 
 const app = express()
 app.use(express.json({ limit: '256kb' }))
@@ -286,9 +273,7 @@ app.get('/tasks/:id', requireServiceToken, (req, res) => {
 // 認證:Bearer APPROVAL_TOKEN(與 service token 共用;個人工具可接受)。
 
 // ── RAG 長期記憶（Soul L3）────────────────────────────────────────────────
-const RAG_BASE = process.env.RAG_SVC_HOST
-  ? `http://${process.env.RAG_SVC_HOST}:8080`
-  : 'http://rag-svc.zeabur.internal:8080'
+const RAG_BASE = getRagBaseUrl()
 
 /** 查詢 RAG 最相關的記憶片段，超時或失敗靜默回空 */
 async function ragQuery(text, topK = 3, kind = null) {
@@ -685,6 +670,9 @@ async function callOpenRouter(model, finalMessages) {
 }
 
 app.post('/chat', requireChatToken, chatRateLimit, async (req, res) => {
+  res.set('Deprecation', 'true')
+  res.set('Link', '</chat/orchestrate>; rel="successor-version"')
+  console.warn('[chat] DEPRECATED: use POST /chat/orchestrate')
   const { messages, model, system } = req.body ?? {}
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages 陣列為必填' })
@@ -838,12 +826,19 @@ app.post('/brain/remember', requireChatToken, async (req, res) => {
 })
 
 app.get('/brain/summary', async (_req, res) => {
-  const RAG_HOST = process.env.RAG_SVC_HOST ? `http://${process.env.RAG_SVC_HOST}:8080` : null
-  if (!RAG_HOST) return res.json({
-    status: 'not_deployed', total_memories: 0,
-    summary: 'RAG 記憶庫尚未部署，開啟後孟一將能持久記住你的偏好與脈絡。',
-    note: 'RAG 服務未部署'
-  })
+  const RAG_HOST = getRagBaseUrl()
+  if (!process.env.RAG_SVC_HOST && !process.env.RAG_SVC_URL) {
+    try {
+      const probe = await fetch(`${RAG_HOST}/health`, { signal: AbortSignal.timeout(1500) })
+      if (!probe.ok) throw new Error('unreachable')
+    } catch {
+      return res.json({
+        status: 'not_deployed', total_memories: 0,
+        summary: 'RAG 記憶庫尚未部署，開啟後孟一將能持久記住你的偏好與脈絡。',
+        note: 'RAG 服務未部署',
+      })
+    }
+  }
   try {
     const r = await fetch(`${RAG_HOST}/health`, { signal: AbortSignal.timeout(3000) })
     if (!r.ok) return res.json({ status: 'error', total_memories: 0, summary: '記憶庫暫時離線', note: 'RAG health check failed' })
@@ -863,10 +858,7 @@ app.get('/brain/summary', async (_req, res) => {
 // 聚合所有服務連線健康與 agent 心跳，PWA / 桌機 StatusDashboard 用。
 // 公開端點，無需 token（不含敏感資料）。
 app.get('/system/status', async (_req, res) => {
-  const RAG_HOST  = process.env.RAG_SVC_HOST   ? `http://${process.env.RAG_SVC_HOST}:8080`  : null
-  // LibreChat 在 Zeabur 內部走 WEB_PORT(預設 3080)，從同 project 另一服務 ping 需帶正確 port。
-  // 嘗試 3080；若逾時則回 offline（不影響聊天功能本身）。
-  const LIBRE_HOST= process.env.LIBRECHAT_HOST ? `http://${process.env.LIBRECHAT_HOST}:3080` : null
+  const RAG_HOST = getRagBaseUrl()
 
   const ping = async (url, timeoutMs = 3000) => {
     const t = Date.now()
@@ -878,26 +870,12 @@ app.get('/system/status', async (_req, res) => {
     }
   }
 
-  // LibreChat 同時嘗試 3080 和 8080（Zeabur 可能重新映射）
-  const libreCheck = async () => {
-    if (!LIBRE_HOST) return { status: 'not_deployed' }
-    const r1 = await ping(`${LIBRE_HOST}/health`, 2000)
-    if (r1.status === 'ok') return r1
-    // fallback: 嘗試 8080
-    const base8080 = LIBRE_HOST.replace(':3080', ':8080')
-    return ping(`${base8080}/health`, 2000)
-  }
-
-  const [ragResult, libreResult] = await Promise.all([
-    RAG_HOST ? ping(`${RAG_HOST}/health`) : Promise.resolve({ status: 'not_deployed' }),
-    libreCheck(),
-  ])
+  const ragResult = await ping(`${RAG_HOST}/health`)
 
   const services = {
     approval_svc: { status: 'ok', latency_ms: 0 },
     openrouter:   { status: OPENROUTER_KEY ? 'configured' : 'missing_key' },
     rag_svc:      ragResult,
-    librechat:    libreResult,
   }
 
   res.json({ ts: Date.now(), services, agents: store.listAgents() })
