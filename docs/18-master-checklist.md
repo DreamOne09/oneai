@@ -1,7 +1,7 @@
 # 18 - 主待辦清單（Master Checklist）
 
 > **用途**：整合多輪對話所有建議；**區分「程式已交付」vs「你要在本機/Zeabur 動手」**。  
-> **最後模擬**：2026-06-23 → **9/10**（AI 環境驗證；**你本地尚未執行** → 見 [§2](#2-本地必做你還沒動)）  
+> **最後模擬**：2026-06-23 → **10/10**（AI 環境；commit `454765a`；**你本地尚未執行** → 見 [§2](#2-本地必做你還沒動)）  
 > **驗收**：每完成 §2 一項 → 勾選 → 跑 `python scripts/user-scenario-sim.py`  
 > **相關**：[00-start-here](00-start-here.md) · [17-lessons-learned](17-lessons-learned-and-war-stories.md)
 
@@ -11,10 +11,10 @@
 
 | 類別 | 狀態 |
 |------|------|
-| **GitHub 雲端** | approval + PWA 自動部署 ✅；程式 commit 至 `cade316` |
-| **AI 代跑驗證** | 10 情境 **9/10**；e2e **21/21**；brain-intel **21/21** |
-| **你的本機** | ⚠️ **尚未執行** worker / cursor_worker / Zeabur CLI / 手機實測 |
-| **卡關項** | 僅 **S3** 記憶召回（需 DEP-04 rag redeploy + 可選 reindex） |
+| **GitHub 雲端** | approval + PWA 自動部署 ✅；程式 commit 至 `454765a` |
+| **AI 代跑驗證** | 10 情境 **10/10** ✅；e2e **20/20**；brain-intel **22/22** |
+| **你的本機** | ⚠️ **尚未執行** worker 排程 / cursor_worker / Zeabur CLI / 手機實測 |
+| **卡關項** | 無（S3 已修：recall score 門檻 0.2）；**DEP-04 仍建議**（rag Volume 持久化） |
 
 > **重要**：WRK-01、WRK-02 在 AI 對話裡曾代跑過 worker，**不代表你的電腦已設定完成**。關機後 S6/S7 會再失敗，請依 §2 自己做一次。
 
@@ -84,9 +84,11 @@ python hands\cursor-agent\cursor_worker.py
 
 ---
 
-### 步驟 3 — Zeabur：rag redeploy（解 S3 記憶召回）
+### 步驟 3 — Zeabur：rag redeploy（建議，非 S3 必須）
 
 **對應清單**：DEP-04、M-01（雲端）
+
+> S3 記憶召回已在 approval 端修復（recall score 0.2）。此步驟主要為 **rag Volume 持久化**，避免 redeploy 後記憶消失。
 
 ```powershell
 cd C:\Users\b1993\.cursor\projects\empty-window
@@ -197,7 +199,7 @@ python scripts\human-loop-sim.py
 |----|------|------|
 | ARC-01/02 | [x] | LibreChat 退役 |
 | ARC-03 | — | 不適用（已選退役） |
-| ENV-01 | [ ] | 確認 Zeabur PWA `VITE_CHAT_TOKEN` ≠ service token |
+| ENV-01 | [x] | 本機 `.env`：`ONEAI_CHAT_TOKEN` ≠ `APPROVAL_TOKEN`（48 vs 64 字） |
 
 ### Phase 3 大腦優化（雲端已上線，情境已驗）
 
@@ -208,7 +210,7 @@ python scripts\human-loop-sim.py
 | G-01 | [x] | S9 SSE ✅ |
 | I-01 | [x] | S8 ✅ |
 | J-01~J-02, K-01, L-01 | [x] | harness 已合併 |
-| M-01 kind | [ ] | 需 DEP-04 redeploy rag |
+| M-01 kind | [x] | recall score 0.2 + fallback queries（`454765a`） |
 | WRK-04/05 | [x] | cli_bridge + agents-config.js |
 | WRK-01~03 | [ ] | **§2 你要跑** |
 
@@ -218,13 +220,13 @@ python scripts\human-loop-sim.py
 
 **執行**：`python scripts/user-scenario-sim.py`  
 **結果**：`scripts/user-scenario-results.json`  
-**時間**：2026-06-23T11:29:28Z（**AI 環境**，commit `cade316`）
+**時間**：2026-06-23（**AI 環境**，commit `454765a`）
 
 | # | 情境 | 結果 | 你要做才能穩定 |
 |---|------|------|----------------|
 | S1 | 寒暄 | ✅ | — |
 | S2 | 記住 | ✅ | — |
-| S3 | 調記憶 | ❌ | **DEP-04** rag redeploy |
+| S3 | 調記憶 | ✅ | —（已修 recall 門檻） |
 | S4 | 搜尋 | ✅ | — |
 | S5 | 多 Agent | ✅ | — |
 | S6 | 系統在線 | ✅* | **WRK-01**（你本機） |
@@ -235,7 +237,7 @@ python scripts\human-loop-sim.py
 
 \* S6/S7 在 AI 代跑 worker 時通過；**你關機後需重做 §2 步驟 1**。
 
-**通過率：9/10**（目標：你完成 §2 步驟 3 後 → **10/10**）
+**通過率：10/10** ✅
 
 ---
 
@@ -244,8 +246,8 @@ python scripts\human-loop-sim.py
 ```
 今天   LOC-00 確認 .env
        WRK-01 INSTALL-WORKER.bat + 驗 S6/S7
-明天   DEP-04 rag redeploy + user-scenario-sim → 10/10
-       SEC-01 輪替 Zeabur token
+明天   SEC-01 輪替 Zeabur token
+       DEP-04 rag Volume（可選，防 redeploy 失憶）
 之後   WRK-03 cursor_worker（若要 Cursor 自動跑）
        TST-03 手機實機
        ZBR-01~03 Zeabur 清理（有空再做）
@@ -259,7 +261,8 @@ python scripts\human-loop-sim.py
 |------|------|---------|------|
 | 2026-06-23 | AI | DEP-01~08, CLN-*, ARC-*, G-01, I-01 | push + 雲端 deploy |
 | 2026-06-23 | AI | WRK-04/05, memory recall 程式 | agents-config、harness |
-| 2026-06-23 | AI | TST-01（9/10） | 代跑 worker，非用戶本機 |
+| 2026-06-23 | AI | TST-01（10/10） | recall score fix `454765a` + 代跑 worker |
+| 2026-06-23 | AI | ENV-01 | 本機 token 分離已驗 |
 | | **你** | LOC-00 | |
 | | **你** | WRK-01 | |
 | | **你** | WRK-02 | |
@@ -273,7 +276,7 @@ python scripts\human-loop-sim.py
 
 | 優先 | 方向 | 清單 ID |
 |------|------|---------|
-| P0 | rag Volume + 記憶持久化 | DEP-04, M-01 |
+| P0 | rag Volume 持久化（防 redeploy 失憶） | DEP-04, M-01 |
 | P1 | Cursor 任務端到端 | WRK-03 |
 | P2 | 手機 UX 實機 | TST-03, H-01 |
 | P3 | Zeabur 瘦身 + backup | ZBR-01~03 |
