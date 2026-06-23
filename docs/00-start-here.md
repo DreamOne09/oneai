@@ -69,17 +69,15 @@ python hands/antigravity/worker.py
 
 ---
 
-## 你現在應該完成的 TOP 5
+## 你現在應該完成的 TOP 5（本地 — 程式已上線，**你要動手**）
 
-完整清單（49+ 項）→ **[18-master-checklist.md](18-master-checklist.md)**
+完整步驟 → **[18-master-checklist.md §2 本地必做](18-master-checklist.md#2-本地必做你還沒動)**
 
-精簡版：
-
-1. **DEP-01~08** push + redeploy + smoke/e2e
-2. **WRK-01** 本機 worker
-3. **SEC-01~02** 輪替 Zeabur token
-4. **CLN-01** 關 ntfy SSE
-5. **TST-01** 10 情境 ≥ 8/10 通過
+1. **LOC-00** 確認 `.env`（含 `ONEAI_WORKER_TOKEN`、`ZEABUR_TOKEN`）
+2. **WRK-01** `.\INSTALL-WORKER.bat` 或常駐 `python hands\antigravity\worker.py`
+3. **DEP-04** `python scripts\zeabur-cli.py redeploy --service-id rag`（解 S3 記憶）
+4. **SEC-01** Zeabur Dashboard 輪替 API token
+5. **TST-01** `python scripts\user-scenario-sim.py` → 目標 **10/10**
 
 ---
 

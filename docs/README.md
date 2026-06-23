@@ -10,7 +10,7 @@
 | 文件 | 適合誰 | 內容 |
 |------|--------|------|
 | [00-start-here.md](00-start-here.md) | 所有人 | **5 分鐘速覽** |
-| [**18-master-checklist.md**](18-master-checklist.md) | **執行交付** | **⭐ 全部待辦 + 10 情境驗收** |
+| [**18-master-checklist.md**](18-master-checklist.md) | **執行交付** | **⭐ 全部待辦 + §2 本地必做 + 10 情境** |
 | [17-lessons-learned-and-war-stories.md](17-lessons-learned-and-war-stories.md) | 部署 / 除錯 | 踩坑大紀錄 |
 | [../infra/zeabur/.deploy-state.md](../infra/zeabur/.deploy-state.md) | 維運 | Service ID、env、CLI 範式（部署 SSOT） |
 
