@@ -18,9 +18,12 @@
 本機 worker：
 
 ```bash
+# 推薦：雙 worker 開機自啟（管理員）
+./INSTALL-WORKERS.bat
+
+# 或單獨 / 除錯
 python hands/antigravity/worker.py
-# 或 INSTALL-WORKER.bat（開機自啟）
-python hands/cursor-agent/cursor_worker.py   # Cursor 任務（選配）
+python hands/cursor-agent/cursor_worker.py
 ```
 
 ---
@@ -29,6 +32,8 @@ python hands/cursor-agent/cursor_worker.py   # Cursor 任務（選配）
 
 | 想做的事 | 怎麼做 |
 |----------|--------|
+| **推 PWA / approval 上線** | `git push origin master`（Zeabur 自動 build） |
+| **推 rag-svc 上線** | `python scripts/zeabur-cli.py redeploy --service-id rag` |
 | 手機對話 | PWA → 對梅蘭說 |
 | 查 / 寫記憶 | PWA Memory Tab；或對話中 🧠 氣泡 |
 | 控桌機 shell | PWA 設定 → 「直接控制桌機 Worker」 |
@@ -54,7 +59,7 @@ flowchart LR
 ```bash
 node scripts/brain-intel.test.js    # 單元
 python scripts/brain-smoke.py       # 雲端 orchestrate
-python scripts/e2e-test.py          # 全 API
+python scripts/e2e-test.py          # API 契約（預設不 hammer rate limit）
 ```
 
 ---

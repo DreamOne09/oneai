@@ -50,18 +50,20 @@ cd C:\Users\b1993\.cursor\projects\empty-window
 ```powershell
 cd C:\Users\b1993\.cursor\projects\empty-window
 
-# 方式 A（建議）：管理員 PowerShell
-.\INSTALL-WORKER.bat
-# → 會裝排程，開機自動跑 worker
+# 方式 A（建議）：管理員 PowerShell — **一次裝齊 agy + Cursor**
+.\INSTALL-WORKERS.bat
+# → 建立 OneAI-Worker + OneAI-CursorWorker 排程，登入自動跑
 
-# 方式 B（手動測試）：開一個常駐終端機
+# 方式 B（舊版，只裝 agy）：.\INSTALL-WORKER.bat
+
+# 方式 C（手動測試）：開兩個常駐終端機
 python hands\antigravity\worker.py
-# 看到「OneAI 本機肉體 worker 啟動 → https://oneai-approval...」即 OK
+python hands\cursor-agent\cursor_worker.py
 ```
 
 | ID | 狀態 | 任務 | 驗收 |
 |----|------|------|------|
-| WRK-01 | [ ] | 執行 **INSTALL-WORKER.bat** 或常駐 `worker.py` | `GET /agents/status` 非空 |
+| WRK-01 | [ ] | 執行 **INSTALL-WORKERS.bat**（或 INSTALL-WORKER.bat 僅 agy） | `GET /agents/status` 非空 |
 | WRK-02 | [ ] | 手機 PWA → 設定 → 桌機 Shell → `echo test` | S7 通過 |
 
 **注意**：worker 終端機要**一直開著**（或用排程）；關掉 = S7 又 queued。
@@ -73,14 +75,15 @@ python hands\antigravity\worker.py
 **對應清單**：WRK-03
 
 ```powershell
-# 另開一個終端機（與 worker.py 並行）
+# 若 WRK-03 未用 INSTALL-WORKERS.bat，另開終端機：
 cd C:\Users\b1993\.cursor\projects\empty-window
 python hands\cursor-agent\cursor_worker.py
+# .env 需有 CURSOR_API_KEY
 ```
 
 | ID | 狀態 | 任務 | 驗收 |
 |----|------|------|------|
-| WRK-03 | [ ] | 常駐 `cursor_worker.py` | S10 任務 status=done（非僅入列） |
+| WRK-03 | [ ] | 常駐 `cursor_worker.py`（見上或 INSTALL-WORKERS.bat） | S10 任務 status=done（非僅入列） |
 
 ---
 

@@ -42,10 +42,10 @@
   → rag-svc（記憶）
   → OpenRouter（LLM）
 
-若要跑本機任務：
+若要跑本機任務（**兩條平行線，非轉派**）：
   → POST /tasks
-  → 本機 worker.py 輪詢認領
-  → executor / agy / Cursor
+  → shell/agent：worker.py 認領（AgyPanel）
+  → cursor_agent：cursor_worker.py 認領（PWA 送到 Cursor）
   → 結果回雲端 → PWA 顯示
 ```
 
@@ -60,9 +60,11 @@ npm install
 npm run dev -w apps/oneai-pwa          # 看 UI（示範模式）
 npm run dev -w services/approval       # 本機 API :8787
 
-# 本機 worker（讓手機能控桌機）
+# 本機 worker（讓手機能控桌機 — 建議雙 worker 都裝）
+.\INSTALL-WORKERS.bat    # 管理員：agy + Cursor 開機自啟
+# 或除錯用手動：
 python hands/antigravity/worker.py
-# 或管理員執行：INSTALL-WORKER.bat
+python hands/cursor-agent/cursor_worker.py
 ```
 
 `.env` 必填：`APPROVAL_BASE_URL`、`ONEAI_WORKER_TOKEN`、`OPENROUTER_KEY`（approval 用）
@@ -73,9 +75,9 @@ python hands/antigravity/worker.py
 
 完整步驟 → **[18-master-checklist.md §2 本地必做](18-master-checklist.md#2-本地必做你還沒動)**
 
-1. **LOC-00** 確認 `.env`（含 `ONEAI_WORKER_TOKEN`、`ZEABUR_TOKEN`）
-2. **WRK-01** `.\INSTALL-WORKER.bat` 或常駐 `python hands\antigravity\worker.py`
-3. **DEP-04** `python scripts\zeabur-cli.py redeploy --service-id rag`（解 S3 記憶）
+1. **LOC-00** 確認 `.env`（含 `ONEAI_WORKER_TOKEN`、`CURSOR_API_KEY`、`ZEABUR_TOKEN`）
+2. **WRK-01~03** `.\INSTALL-WORKERS.bat`（agy + Cursor 雙排程）或手動常駐兩個 worker
+3. **DEP-04** `python scripts\zeabur-cli.py redeploy --service-id rag`（rag Volume 持久化）
 4. **SEC-01** Zeabur Dashboard 輪替 API token
 5. **TST-01** `python scripts\user-scenario-sim.py` → 目標 **10/10**
 
@@ -86,7 +88,7 @@ python hands/antigravity/worker.py
 | 目的 | 文件 |
 |------|------|
 | 部署 / 踩坑 | [17-lessons-learned](17-lessons-learned-and-war-stories.md) |
-| 架構全貌 | [01-architecture](01-architecture.md) |
+| 部署 / Worker | [**19-deployment-and-workers**](19-deployment-and-workers.md) | **GitHub vs Zeabur CLI、agy↔Cursor、常駐** |
 | 本機 agy | [12-antigravity-hands](12-antigravity-hands.md) |
 | PWA 功能 | [11-oneai-pwa-interface](11-oneai-pwa-interface.md) |
 | 安全 | [08-security](08-security.md) |

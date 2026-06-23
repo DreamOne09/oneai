@@ -3,11 +3,14 @@
 export const MIN_MEMORY_SCORE = 0.6
 /** 召回意圖時語意距離較大，門檻需低於一般注入 */
 export const RECALL_MEMORY_SCORE = 0.2
+/** 系統知識（kind=system）注入門檻 — 架構查詢 paraphrase 較多 */
+export const SYSTEM_MEMORY_SCORE = 0.18
 export const DEDUP_SCORE = 0.95
 
 const SMALL_TALK_RE = /^(嗨|你好|哈囉|hello|hi|hey|早|晚安|午安|谢谢|謝謝|thanks|ok|好的|收到|在嗎|在吗|test)[\s!?.，。~～]*$/i
 const REMEMBER_RE = /記住|幫我記|帮我记|別忘了|别忘了|不要忘记|写进记忆|寫進記憶|remember this/i
 const RECALL_RE = /還記得|还记得|你記得|你记得|你知道我|腦中|脑中|記憶庫|记忆库|之前說|之前说|我說過|我说过/
+const SYSTEM_KNOWLEDGE_RE = /oneai|架構|系统架构|系統架構|worker\.py|cursor_worker|cursor worker|agy|zeabur|部署方式|rag-svc|approval-svc|任務佇列|佇列|怎麼跑|怎麼運|怎么运|本機.*worker|送到 cursor|shell.*agent|github.*push|INSTALL-WORKER/i
 const SEARCH_PREFIX_RE = /^(請|帮我|幫我|请)?(搜尋|搜索|查一下|查詢|找一下|查查|search|google|幫我找|帮我找)\s*/i
 const FACT_RE = /記住|出差|行程|偏好|deadline|截止|會議|電話|地址|email|@[\w.-]+/i
 
@@ -63,6 +66,21 @@ export function needsRecall(text) {
   return RECALL_RE.test(String(text ?? ''))
 }
 
+export function needsSystemKnowledge(text) {
+  return SYSTEM_KNOWLEDGE_RE.test(String(text ?? ''))
+}
+
+export function filterSystemMemories(raw) {
+  return (raw ?? [])
+    .filter(m => {
+      const text = memoryToText(m)
+      if (!text.trim() || /\[E2E TEST\]/i.test(text)) return false
+      const s = memoryScore(m)
+      return s === 0 || s >= SYSTEM_MEMORY_SCORE
+    })
+    .slice(0, 3)
+}
+
 export function needsWebSearch(text, searchKeywords = []) {
   const t = String(text ?? '').toLowerCase()
   return searchKeywords.some(kw => t.includes(kw.toLowerCase()))
@@ -107,8 +125,15 @@ export function buildMemoryBlock(memories) {
   return `\n\n【孟一的長期記憶（僅注入高相關片段，score≥${MIN_MEMORY_SCORE}）】\n${memories.map((m, i) => `${i + 1}. ${memoryToText(m)}`).join('\n')}\n`
 }
 
+export function buildSystemKnowledgeBlock(systemMemories) {
+  if (!systemMemories.length) return ''
+  return `\n\n【OneAI 系統知識（kind=system，架構/部署 SSOT）】\n${systemMemories.map((m, i) => `${i + 1}. ${memoryToText(m)}`).join('\n')}\n`
+}
+
 export function shouldRemember(userMsg, reply, { explicitRemember, smallTalk }) {
   if (smallTalk) return false
+  // 架構/部署問答不寫入個人記憶 — 由 kind=system seed 維護 SSOT
+  if (needsSystemKnowledge(userMsg) && !explicitRemember) return false
   if (explicitRemember) return true
   const u = String(userMsg ?? '').trim()
   const r = String(reply ?? '').trim()
@@ -137,6 +162,9 @@ export function buildBrainMeta(memories, remembered) {
 
 export function mergeAgentRoute(llmIds, userMsg, searchKeywords, _butlerKeywords) {
   let ids = [...(llmIds ?? [])]
+  if (needsSystemKnowledge(userMsg)) {
+    if (!ids.includes('engineer')) ids.unshift('engineer')
+  }
   if (needsExplicitRemember(userMsg) || needsRecall(userMsg)) {
     if (!ids.includes('butler')) ids.unshift('butler')
   }

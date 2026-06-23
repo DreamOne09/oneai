@@ -7,6 +7,8 @@ import AgentGrid from './components/AgentGrid'
 import AgentPanel from './components/AgentPanel'
 import { BrainPanel } from './components/BrainPanel'
 import { AgyPanel } from './components/AgyPanel'
+import { CursorHubSection } from './components/CursorHubSection'
+import { CursorJobsBar } from './components/CursorJobsBar'
 import DevPanel from './components/DevPanel'
 import { startHeartbeat } from './lib/heartbeat'
 import { enablePush } from './lib/push'
@@ -64,9 +66,10 @@ function SettingsTab({ onShowAgy }: { onShowAgy: () => void }) {
           <span>🔔</span> 開啟手機推播通知
         </button>
         <button className="settings-row glass" onClick={onShowAgy}>
-          <span>⚡</span> 直接控制桌機 Worker
+          <span>⚡</span> 直接控制桌機 Worker（Shell）
         </button>
       </div>
+      <CursorHubSection />
       <div className="settings-section">
         <p className="settings-title">系統資訊</p>
         <AgentPanel />
@@ -181,6 +184,7 @@ export default function App() {
                 <ActivityFeed />
               </div>
               <div className="tab-chat-input">
+                <CursorJobsBar />
                 <ApprovalCard />
                 <ChatInput />
               </div>

@@ -26,7 +26,6 @@ export interface ActivityItem {
   kind: ActivityKind
   text: string
   ts: number
-  // 訊息來源 agent（'user' 為使用者自己）
   agentId?: string
   agentIcon?: string
   agentDisplay?: string
@@ -35,6 +34,26 @@ export interface ActivityItem {
   brainLearned?: boolean
   memoryQuery?: string
   agentDetails?: AgentDetail[]
+  /** Cursor / 桌機任務卡片（不顯示程式碼） */
+  taskMeta?: TaskMeta
+}
+
+export interface TaskMeta {
+  taskId: string
+  projectPath: string
+  projectName: string
+  summary: string
+  status: 'queued' | 'running' | 'done' | 'error' | 'timeout' | 'rejected'
+  worker?: 'cursor' | 'shell'
+}
+
+export interface CursorJob {
+  taskId: string
+  projectPath: string
+  projectName: string
+  summary: string
+  status: TaskMeta['status']
+  ts: number
 }
 
 export type ApprovalAction =
@@ -51,6 +70,7 @@ export interface AgentInfo {
   org?: string
   status: 'idle' | 'running' | 'error' | string
   current_task?: string | null
+  workspace_cwd?: string | null
   last_seen: number
   online: boolean
 }

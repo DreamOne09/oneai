@@ -2,7 +2,7 @@
  * AgyPanel — 直接派送 Shell 任務給本機 worker
  */
 import { useState } from 'react'
-import { dispatchTask, pollTaskOnce } from '../lib/task-client'
+import { dispatchTask, pollTaskOnce, extractTaskOutput } from '../lib/task-client'
 
 const QUICK_COMMANDS = [
   { label: '📋 系統資訊', cmd: 'systeminfo | findstr /B /C:"OS" /C:"Total Physical"' },
@@ -36,8 +36,8 @@ export function AgyPanel({ onClose }: AgyPanelProps) {
       while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 2000))
         const data = await pollTaskOnce(taskId)
-        const result = data.result?.stdout_tail ?? data.result?.summary ?? ''
-        const errTail = data.result?.stderr_tail ?? ''
+        const result = extractTaskOutput(data)
+        const errTail = (data.result?.stderr_tail ?? '').trim()
         setOutput({ taskId, status: data.status ?? 'running', result: result || errTail })
         if (data.status === 'done' || data.status === 'error' || data.status === 'rejected') break
       }

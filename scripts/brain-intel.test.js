@@ -10,8 +10,12 @@ import {
   mergeAgentRoute,
   enforceSearchReply,
   classifyMemoryKind,
+  needsSystemKnowledge,
+  filterSystemMemories,
+  buildSystemKnowledgeBlock,
   RECALL_MEMORY_SCORE,
   MIN_MEMORY_SCORE,
+  SYSTEM_MEMORY_SCORE,
 } from '../services/approval/src/brain-intel.js'
 
 let passed = 0
@@ -74,6 +78,20 @@ assert(classifyMemoryKind('今天天氣如何', false) === 'memory', 'episodic k
 
 assert(RECALL_MEMORY_SCORE === 0.2, 'recall score threshold 0.2')
 assert(MIN_MEMORY_SCORE === 0.6, 'score threshold 0.6')
+assert(SYSTEM_MEMORY_SCORE === 0.18, 'system score threshold')
+
+assert(needsSystemKnowledge('OneAI 架構怎麼跑'), 'system knowledge arch')
+assert(needsSystemKnowledge('cursor_worker 和 agy 有通嗎'), 'system knowledge worker')
+assert(!needsSystemKnowledge('今天天氣如何'), 'not system knowledge')
+
+assert(
+  !shouldRemember('OneAI worker 怎麼常駐', 'b'.repeat(130), { explicitRemember: false, smallTalk: false }),
+  'no remember system architecture chat',
+)
+
+const sysRaw = [{ text: 'agy 與 cursor 平行輪詢', score: 0.22 }]
+assert(filterSystemMemories(sysRaw).length === 1, 'system memory filter')
+assert(buildSystemKnowledgeBlock(sysRaw).includes('kind=system'), 'system block label')
 
 console.log(`\nbrain-intel: ${passed} passed, ${failed} failed`)
 process.exit(failed > 0 ? 1 : 0)

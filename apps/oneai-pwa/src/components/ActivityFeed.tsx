@@ -76,7 +76,26 @@ function MessageBubble({ item }: { item: ActivityItem }) {
           </div>
         )}
 
-        {/* 訊息泡泡 */}
+        {/* 任務卡片（Cursor — 專案 + 狀態，不顯示 code） */}
+        {item.taskMeta && (
+          <div className="task-card glass">
+            <div className="task-card-row">
+              <span className="task-card-project">📁 {item.taskMeta.projectName}</span>
+              <span className={`task-card-status status-${item.taskMeta.status}`}>
+                {item.taskMeta.status}
+              </span>
+            </div>
+            <div className="task-card-summary">{item.taskMeta.summary}</div>
+            <div className="task-card-meta">
+              {item.taskMeta.worker === 'cursor' ? 'Cursor IDE' : '桌機 Worker'}
+              {' · '}
+              {item.taskMeta.taskId.slice(0, 8)}
+            </div>
+          </div>
+        )}
+
+        {/* 訊息泡泡（任務類只顯示結果摘要，不 repeat 卡片） */}
+        {(!item.taskMeta || item.kind === 'result') && (
         <div
           className={`msg-bubble ${isUser ? 'msg-bubble--user' : `msg-bubble--agent kind-${item.kind}`}${isMemoryCard ? ' msg-bubble--memory-link' : ''}`}
           style={!isUser ? { borderLeftColor: `${color}66` } : undefined}
@@ -93,9 +112,9 @@ function MessageBubble({ item }: { item: ActivityItem }) {
             </button>
           )}
         </div>
+        )}
 
-        {/* 搜尋來源連結 */}
-        {item.searchSources && item.searchSources.length > 0 && (
+        {!item.taskMeta && item.searchSources && item.searchSources.length > 0 && (
           <div className="msg-sources">
             {item.searchSources.map((s, i) => (
               <a
@@ -111,7 +130,7 @@ function MessageBubble({ item }: { item: ActivityItem }) {
           </div>
         )}
 
-        {item.agentDetails && item.agentDetails.length > 0 && (
+        {!item.taskMeta && item.agentDetails && item.agentDetails.length > 0 && (
           <div className="msg-experts">
             <button type="button" className="msg-expand" onClick={() => setShowExperts(v => !v)}>
               {showExperts ? '收合專家 ↑' : `查看 ${item.agentDetails!.length} 位專家 ↓`}

@@ -154,7 +154,15 @@
       "org": "personal",
       "trust": "internal",
       "task_types": ["shell", "agent"],
-      "description": "本機 Antigravity worker（hands/antigravity/worker.py）。執行本機 Shell 指令。"
+      "description": "本機 Antigravity worker（hands/antigravity/worker.py）。執行 shell/agent；不處理 cursor_agent。"
+    },
+    "personal/cursor-worker": {
+      "display": "Cursor IDE",
+      "icon": "💻",
+      "org": "personal",
+      "trust": "internal",
+      "task_types": ["cursor_agent"],
+      "description": "本機 Cursor worker（hands/cursor-agent/cursor_worker.py）。PWA 派送 Cursor 任務；需 CURSOR_API_KEY 常駐。"
     },
     "personal/mobile-pwa": {
       "display": "手機 OneAI",

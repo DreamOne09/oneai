@@ -52,13 +52,13 @@ flowchart TB
     appr -- "② ~ ④ 呼叫子 Agent" --> llm
     appr -- "推播/審核" --> pwa
 
-    pwa -- "💻 在 Cursor 執行\nPOST /tasks {type:cursor_agent}" --> appr
-    appr -- "任務佇列" --> worker
-    worker -- "cursor_agent 任務" --> cursor_w
-    cursor_w -- "Cursor SDK" --> cursor
+    pwa -- "💻 送到 Cursor\nPOST /tasks {type:cursor_agent}" --> appr
+    appr -- "任務佇列 /tasks" --> cursor_w
+    appr -- "任務佇列 /tasks" --> worker
 
-    worker -- "長輪詢 /tasks/next" --> appr
-    worker -- "心跳 /agents/heartbeat" --> appr
+    cursor_w -- "GET /tasks/next?type=cursor_agent" --> appr
+    worker -- "GET /tasks/next?type=shell,agent" --> appr
+    cursor_w -- "Cursor SDK" --> cursor
 
     user -- "桌面工作台" --> librechat
     librechat -- "mcp-core stdio" --> appr
@@ -117,12 +117,11 @@ sequenceDiagram
 sequenceDiagram
     participant P as PWA
     participant A as approval-svc
-    participant W as worker.py
     participant CW as cursor_worker.py
     participant C as Cursor IDE
 
-    Note over P: 使用者點「💻 在 Cursor 執行」
-    P->>A: POST /tasks { type:cursor_agent, payload:{prompt, code} }
+    Note over P: 使用者點「💻 送到 Cursor（選專案）」
+    P->>A: POST /tasks { type:cursor_agent, payload:{prompt, cwd} }
     A-->>P: { id: "task_abc123" }
 
     loop 輪詢（每 2.5s，最多 90s）
@@ -130,16 +129,17 @@ sequenceDiagram
         A-->>P: { status: "queued" | "running" | "done" }
     end
 
-    W->>A: GET /tasks/next （長輪詢）
-    A-->>W: 認領 task_abc123
-    W->>CW: 派發 cursor_agent 任務
-    CW->>C: Cursor SDK Agent.run(prompt)
-    Note over C: 程式碼出現在這裡<br/>（編輯器自動修改/建立檔案）
+    CW->>A: GET /tasks/next?type=cursor_agent （長輪詢）
+    A-->>CW: 認領 task_abc123
+    CW->>C: Cursor SDK Agent.run(prompt, cwd)
+    Note over C: 程式碼出現在 IDE<br/>（手機只看摘要）
     C-->>CW: 執行結果
     CW->>A: POST /tasks/task_abc123/result
-    A-->>P: { status:done, result: { summary, stdout_tail } }
-    P->>P: 顯示「✅ Cursor 完成」
+    A-->>P: { status:done, result: { summary } }
+    P->>P: 任務卡片 + 文字摘要（不顯示 code）
 ```
+
+> **注意**：`worker.py`（agy/shell）與 `cursor_worker.py` **並行**輪詢同一佇列，任務 type 不同，互不轉派。詳見 [19-deployment-and-workers](19-deployment-and-workers.md)。
 
 ---
 
@@ -156,11 +156,14 @@ L2 工作記憶（對話 session）
 
 L3 長期記憶（跨 session 累積）
    └─ rag-svc ChromaDB：選擇性寫入 + 智慧注入
-      · score≥0.6 才注入；寒暄 skip（brain-intel）
+      · score≥0.6 才注入個人記憶；寒暄 skip（brain-intel）
       · 顯式「記住」→ kind=preference；一般對話 → kind=memory
+      · **kind=system** → 架構/部署 SSOT（`config/oneai.system-architecture.json` seed，不與個人記憶混寫）
+      · 架構問答 **不** auto-remember（避免污染個人記憶庫）
       · 寫入前去重（相似度≥0.95）
       來源 1：Obsidian vault .md
       來源 2：orchestrate 選擇性 /remember（Markdown + 出處）
+      來源 3：approval 啟動時 seed kind=system（`system-memory.js`）
 ```
 
 > 詳見 `services/approval/src/brain-intel.js`、`orchestrate-harness.js`。
@@ -177,8 +180,8 @@ L3 長期記憶（跨 session 累積）
 | **LibreChat** | Zeabur（選配） | 桌面工作台；**2026-06 起未部署** |
 | **MongoDB** | Zeabur（選配） | LibreChat 用；隨 LC 下線 |
 | **oneai-backup** | Zeabur | 每日 03:00 UTC mongodump，保留 7 天 |
-| **Antigravity worker.py** | 本機 | 反向輪詢任務佇列，執行 shell/cursor_agent，30s 心跳 |
-| **cursor_worker.py** | 本機 | 認領 `cursor_agent` 任務，呼叫 Cursor SDK → IDE 執行 |
+| **Antigravity worker.py** | 本機 | 反向輪詢 **shell/agent** 任務，30s 心跳；**不**處理 cursor_agent |
+| **cursor_worker.py** | 本機 | **獨立行程**，反向輪詢 **cursor_agent** 任務，呼叫 Cursor SDK |
 | **Cursor IDE** | 本機 | 程式碼的實際執行環境；mcp-core 8 工具可供 Cursor AI 使用 |
 | **Obsidian vault** | 本機 | 知識庫 `.md`，reindex 到 rag-svc 成為長期記憶 |
 | **OpenRouter** | 雲端 | 所有 LLM 統一閘道，主模型 `gemini-2.5-flash` + fallback chain |
@@ -217,7 +220,7 @@ L3 長期記憶（跨 session 累積）
 |---|---|---|
 | 第二輪 brain/harness/SSE | **本地待 push** | orchestrate-harness、SSE 進度、kind 檢索 |
 | Backup Volume 掛載 | **待手動** | `/data/backups` |
-| Worker 開機自啟 | **待手動** | `INSTALL-WORKER.bat` |
+| Worker 開機自啟 | **待手動** | `INSTALL-WORKERS.bat`（agy + Cursor 雙排程） |
 | LibreChat 恢復 vs 退役 | **待決策** | chat.zeabur.app 404 |
 | rag-svc redeploy | **待手動** | kind  metadata 需新映像 |
 | Zeabur 清理 video-wizard | **待做** | 4 個 SUSPENDED 服務 |

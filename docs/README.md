@@ -10,6 +10,7 @@
 | 文件 | 適合誰 | 內容 |
 |------|--------|------|
 | [00-start-here.md](00-start-here.md) | 所有人 | **5 分鐘速覽** |
+| [**19-deployment-and-workers.md**](19-deployment-and-workers.md) | **維運 / 部署** | **GitHub vs Zeabur、agy↔Cursor、Worker 常駐** |
 | [**18-master-checklist.md**](18-master-checklist.md) | **執行交付** | **⭐ 全部待辦 + §2 本地必做 + 10 情境** |
 | [17-lessons-learned-and-war-stories.md](17-lessons-learned-and-war-stories.md) | 部署 / 除錯 | 踩坑大紀錄 |
 | [../infra/zeabur/.deploy-state.md](../infra/zeabur/.deploy-state.md) | 維運 | Service ID、env、CLI 範式（部署 SSOT） |
@@ -79,6 +80,7 @@ hands/antigravity/        本機 worker + agy
 hands/cursor-agent/       Cursor SDK worker
 bridge/mcp-core/          MCP 工具（LibreChat / Cursor 用）
 config/oneai.agents.json  Agent 路由 SSOT
+config/oneai.system-architecture.json  架構 SSOT（注入 Agent prompt）
 config/oneai.models.json  模型 SSOT
 scripts/brain-smoke.py    雲端煙霧測試
 scripts/e2e-test.py       API 契約煙霧（SSE/token/Butler/task；`--rate-limit` 可選）

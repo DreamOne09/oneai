@@ -16,6 +16,9 @@ import {
   enforceSearchReply,
   buildWorkerContext,
   needsRecall,
+  needsSystemKnowledge,
+  filterSystemMemories,
+  buildSystemKnowledgeBlock,
   classifyMemoryKind,
 } from './brain-intel.js'
 
@@ -80,10 +83,11 @@ export async function runOrchestrateTurn(deps, input) {
     }
   }
 
-  // ② RAG + 路由並行（召回時不過濾 kind — 舊 chunk 可能無 metadata）
+  // ② RAG + 路由並行（個人記憶 + 系統知識分開查）
   emit('rag_start')
   const recallIntent = needsRecall(userMsg) || explicitRemember
-  const [rawMemories, agentIdsFromLLM] = await Promise.all([
+  const systemIntent = needsSystemKnowledge(userMsg)
+  const [rawMemories, rawSystem, agentIdsFromLLM] = await Promise.all([
     (async () => {
       let rows = await ragQuery(userMsg, recallIntent ? 8 : 4, null)
       if (recallIntent && rows.length === 0) {
@@ -94,11 +98,15 @@ export async function runOrchestrateTurn(deps, input) {
       }
       return rows
     })(),
+    systemIntent
+      ? ragQuery('OneAI 系統架構 worker cursor 部署', 4, 'system')
+      : Promise.resolve([]),
     detectAgentsLLM(userMsg, ''),
   ])
   const memories = filterMemories(rawMemories, userMsg)
-  const memoryBlock = buildMemoryBlock(memories) + workerBlock
-  emit('rag_done', { count: memories.length })
+  const systemMemories = filterSystemMemories(rawSystem)
+  const memoryBlock = buildMemoryBlock(memories) + buildSystemKnowledgeBlock(systemMemories) + workerBlock
+  emit('rag_done', { count: memories.length, system: systemMemories.length })
 
   const butlerKws = ROUTING_TRIGGERS.butler ?? []
   const agentIds = mergeAgentRoute(agentIdsFromLLM, userMsg, RESEARCH_KWS, butlerKws)

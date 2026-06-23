@@ -1,0 +1,66 @@
+{
+  "_comment": "OneAI 系統架構 SSOT — 注入所有 Agent system prompt，讓 AI 回答時知道「自己跑在哪」",
+  "_version": "3.2",
+  "_updated": "2026-06-23",
+
+  "one_liner": "手機 PWA 指揮 → 雲端 approval-svc 編排+記憶 → 本機 worker 執行（agy shell / Cursor SDK）",
+
+  "layers": {
+    "phone": {
+      "name": "OneAI PWA",
+      "url": "https://oneai-mengyi.zeabur.app",
+      "role": "主介面：對話、審核、Agent 狀態、派送 Cursor（不顯示 code）"
+    },
+    "cloud": {
+      "approval_svc": {
+        "url": "https://oneai-approval.zeabur.app",
+        "role": "編排 /chat/orchestrate、任務佇列 /tasks、Agent 心跳 /agents、RAG 注入、Web Push",
+        "deploy": "GitHub push master → Zeabur 自動 build"
+      },
+      "rag_svc": {
+        "host": "rag-svc:8080（Zeabur 內網）",
+        "role": "ChromaDB 長期記憶 /query /remember",
+        "deploy": "手動 zeabur deploy 或 scripts/zeabur-cli.py redeploy — 非 Git 自動"
+      }
+    },
+    "local": {
+      "agy_worker": {
+        "file": "hands/antigravity/worker.py",
+        "task_types": ["shell", "agent"],
+        "role": "AgyPanel 桌機 Shell、agy CLI 任務",
+        "poll": "GET /tasks/next?type=shell,agent"
+      },
+      "cursor_worker": {
+        "file": "hands/cursor-agent/cursor_worker.py",
+        "task_types": ["cursor_agent"],
+        "role": "PWA「送到 Cursor」→ Cursor SDK 在本機 IDE 改 code",
+        "poll": "GET /tasks/next?type=cursor_agent",
+        "requires": ["CURSOR_API_KEY", "cursor_worker 常駐"]
+      }
+    }
+  },
+
+  "critical_facts": [
+    "agy worker 與 cursor_worker 是兩個獨立行程，都反向輪詢 approval-svc，彼此不轉派",
+    "只跑 worker.py 時 Cursor 任務永遠 queued；只跑 cursor_worker 時 Shell 任務無人認領",
+    "LibreChat + MongoDB 2026-06 起已下線；主路徑是 PWA → approval-svc",
+    "PWA 用 VITE_APPROVAL_TOKEN（低權限）；worker 用 ONEAI_WORKER_TOKEN",
+    "雲端改 approval 或 PWA：git push；改 rag/brain：Zeabur CLI 手動 redeploy"
+  ],
+
+  "deploy_matrix": {
+    "oneai-approval": "GitHub auto",
+    "oneai-pwa-v2": "GitHub auto",
+    "rag-svc": "Zeabur CLI manual",
+    "worker.py": "本機 INSTALL-WORKERS.bat 或手動",
+    "cursor_worker.py": "本機 INSTALL-WORKERS.bat 或手動"
+  },
+
+  "doc_ssot": [
+    "docs/00-start-here.md",
+    "docs/01-architecture.md",
+    "docs/19-deployment-and-workers.md",
+    "docs/18-master-checklist.md",
+    "infra/zeabur/.deploy-state.md"
+  ]
+}

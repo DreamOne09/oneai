@@ -10,6 +10,7 @@ import {
 } from './brain-intel.js'
 import { runOrchestrateTurn } from './orchestrate-harness.js'
 import { getRagBaseUrl } from './rag-host.js'
+import { seedSystemMemoryIfNeeded } from './system-memory.js'
 import {
   AGENTS_CONFIG,
   MENGYI_BRIEF,
@@ -272,7 +273,14 @@ app.post('/tasks/:id/result', requireWorkerToken, (req, res) => {
 app.get('/tasks/:id', requireServiceToken, (req, res) => {
   const t = store.getTask(req.params.id)
   if (!t) return res.status(404).json({ error: '未知 task id' })
-  res.json({ id: t.id, status: t.status, result: t.result ?? null })
+  res.json({
+    id: t.id,
+    status: t.status,
+    type: t.type,
+    payload: t.payload ?? null,
+    createdAt: t.createdAt,
+    result: t.result ?? null,
+  })
 })
 
 // ── 聊天代理(Chat Proxy)────────────────────────────────────────────────────
@@ -615,9 +623,15 @@ app.post('/cron/morning-digest', requireServiceToken, (_req, res) => {
 // worker 每 30s POST /agents/heartbeat(需 worker token,最小權限);
 // PWA GET /agents/status 取得全部 agent 列表(公開,無需 token)。
 app.post('/agents/heartbeat', requireWorkerToken, (req, res) => {
-  const { agent_id, display, org, status, current_task } = req.body ?? {}
+  const { agent_id, display, org, status, current_task, workspace_cwd } = req.body ?? {}
   if (!agent_id) return res.status(400).json({ error: '缺少 agent_id' })
-  store.upsertAgent({ agent_id, display, org, status: status || 'idle', current_task: current_task || null, last_seen: Date.now() })
+  store.upsertAgent({
+    agent_id, display, org,
+    status: status || 'idle',
+    current_task: current_task || null,
+    workspace_cwd: workspace_cwd || null,
+    last_seen: Date.now(),
+  })
   res.json({ ok: true })
 })
 
@@ -665,9 +679,12 @@ app.post('/brain/remember', requireChatToken, async (req, res) => {
   const text = String(req.body?.text ?? '').trim()
   if (!text || text.length < 5) return res.status(400).json({ error: '記憶內容太短（至少 5 字）' })
   if (text.length > 2000) return res.status(400).json({ error: '記憶內容過長（最多 2000 字）' })
+  const kind = String(req.body?.kind ?? 'memory')
+  const allowed = ['memory', 'preference', 'reflection', 'sop', 'system']
+  if (!allowed.includes(kind)) return res.status(400).json({ error: `kind 須為 ${allowed.join('|')}` })
   const docId = `manual-${Date.now()}`
-  await ragRemember(text, docId)
-  res.json({ ok: true, doc_id: docId, text: text.slice(0, 100) })
+  await ragRemember(text, docId, kind)
+  res.json({ ok: true, doc_id: docId, kind, text: text.slice(0, 100) })
 })
 
 app.get('/brain/summary', async (_req, res) => {
@@ -741,7 +758,10 @@ app.get('/system/status', async (_req, res) => {
   res.json({ ts: Date.now(), services, agents: store.listAgents() })
 })
 
-app.listen(PORT, () => console.log(`[approval] 審核服務 listening on :${PORT}`))
+app.listen(PORT, () => {
+  console.log(`[approval] 審核服務 listening on :${PORT}`)
+  setTimeout(() => seedSystemMemoryIfNeeded(ragRememberSmart), 3000)
+})
 
 // ── 主動監控：worker 離線超過 5 分鐘自動推播 ──────────────────────────────────
 const WORKER_OFFLINE_THRESHOLD_MS = 5 * 60 * 1000   // 5 分鐘

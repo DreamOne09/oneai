@@ -67,14 +67,23 @@ function AgentRow({ a }: { a: AgentInfo }) {
   const dot = !a.online ? '○' : a.status === 'running' ? '◉' : '●'
 
   const taskText = a.online
-    ? (a.current_task ? a.current_task.slice(0, 45) : AGENT_STATUS_LABEL[a.status] ?? a.status)
+    ? (a.current_task ? a.current_task.slice(0, 55) : AGENT_STATUS_LABEL[a.status] ?? a.status)
     : '離線'
+
+  const isCursor = a.agent_id.includes('cursor')
 
   return (
     <div className={`agent-row ${dotClass}`}>
       <span className="agent-status-dot">{dot}</span>
-      <span className="agent-name">{a.display || a.agent_id}</span>
-      <span className="agent-task">{taskText}</span>
+      <div className="agent-row-main">
+        <span className="agent-name">{a.display || a.agent_id}</span>
+        <span className="agent-task">{taskText}</span>
+        {isCursor && a.workspace_cwd && (
+          <span className="agent-workspace" title={a.workspace_cwd}>
+            📁 {a.workspace_cwd.split(/[/\\]/).pop()}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -149,7 +158,7 @@ export default function AgentPanel() {
           <div className="panel-section">
             <span className="panel-section-title">Agent</span>
             {agents.length === 0 ? (
-              <p className="agent-empty">尚無 agent 回報心跳<br />啟動 worker.py 後即出現</p>
+              <p className="agent-empty">尚無 agent 回報心跳<br />agy: worker.py · Cursor: cursor_worker.py</p>
             ) : (
               Object.entries(byOrg).map(([org, list]) => (
                 <div key={org} className="agent-org">

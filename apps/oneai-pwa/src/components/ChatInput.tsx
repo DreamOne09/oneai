@@ -2,6 +2,8 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { useOneAI } from '../state/store'
 import { orchestrateStream, type AgentContrib, type History, type OrchestrateResult } from '../lib/orchestrate-client'
 import { dispatchTask, pollTaskUntilDone } from '../lib/task-client'
+import { CursorPanel, type CursorDispatchPayload } from './CursorPanel'
+import { rememberProject } from '../lib/cursor-projects'
 
 const PHASE_FALLBACK: Record<string, string> = {
   rag_start: '🧠 調取長期記憶…',
@@ -62,6 +64,8 @@ export default function ChatInput() {
   const [busy, setBusy] = useState(false)
   const [execState, setExecState] = useState<'idle' | 'dispatching' | 'running'>('idle')
   const [lastResult, setLastResult] = useState<OrchestrateResult | null>(null)
+  const [showCursorPanel, setShowCursorPanel] = useState(false)
+  const [lastUserMsg, setLastUserMsg] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [interimText, setInterimText] = useState('')
   const historyRef = useRef<History>([])
@@ -72,6 +76,8 @@ export default function ChatInput() {
   const setPending      = useOneAI((s) => s.setPending)
   const setCurrentModel = useOneAI((s) => s.setCurrentModel)
   const clearActivities = useOneAI((s) => s.clearActivities)
+  const upsertCursorJob = useOneAI((s) => s.upsertCursorJob)
+  const updateCursorJob = useOneAI((s) => s.updateCursorJob)
 
   // 清理 speech recognition on unmount
   useEffect(() => () => { srRef.current?.stop() }, [])
@@ -130,6 +136,7 @@ export default function ChatInput() {
     setText('')
     setBusy(true)
     setLastResult(null)
+    setLastUserMsg(msg)
 
     // 用戶訊息氣泡
     pushActivity('user', msg, { agentId: 'user', agentIcon: '👤', agentDisplay: '你' })
@@ -209,29 +216,58 @@ export default function ChatInput() {
     }
   }
 
-  /** Engineer 程式碼送到 Cursor IDE 執行 */
-  const dispatchToCursor = async () => {
+  /** 開啟確認面板（顯示 repo + 摘要，不顯示 code） */
+  const openCursorPanel = () => {
     if (!lastResult?.execute_code) return
+    setShowCursorPanel(true)
+  }
+
+  const confirmCursorDispatch = async ({ cwd, projectName, summary }: CursorDispatchPayload) => {
+    if (!lastResult?.execute_code) return
+    setShowCursorPanel(false)
     setExecState('dispatching')
+    rememberProject(cwd)
+
+    const taskSummary = summary.slice(0, 120) || '在 Cursor 實作工程師方案'
+    const prompt = `專案：${projectName}\n使用者需求：${summary}\n\n請在 Cursor 中實作（可建立/修改檔案）：\n\`\`\`\n${lastResult.execute_code}\n\`\`\``
+
     try {
-      const taskId = await dispatchTask('cursor_agent', {
-        prompt: `請在 Cursor 中實作以下程式碼，若需要建立新檔案請自動命名：\n\`\`\`\n${lastResult.execute_code}\n\`\`\``,
-        cwd: '.',
-      })
-      pushActivity('task', `💻 已派送 Cursor 任務 [${taskId.slice(0, 8)}]，等待桌機執行…`, {
-        agentId: 'engineer', agentIcon: '💻', agentDisplay: '工程師',
+      const taskId = await dispatchTask('cursor_agent', { prompt, cwd })
+      const taskMeta = {
+        taskId,
+        projectPath: cwd,
+        projectName,
+        summary: taskSummary,
+        status: 'queued' as const,
+        worker: 'cursor' as const,
+      }
+      upsertCursorJob({ ...taskMeta, ts: Date.now() })
+      pushActivity('task', `💻 Cursor · ${projectName}`, {
+        agentId: 'engineer', agentIcon: '💻', agentDisplay: 'Cursor',
+        taskMeta,
       })
       setExecState('running')
+      updateCursorJob(taskId, { status: 'running' })
 
-      pollTaskUntilDone(taskId, { onStatus: (s) => { if (s === 'running') setExecState('running') } }).then(({ summary }) => {
-        pushActivity('result', `Cursor 任務 [${taskId.slice(0, 8)}]\n${summary}`, {
-          agentId: 'engineer', agentIcon: '💻', agentDisplay: '工程師',
+      pollTaskUntilDone(taskId, {
+        onStatus: (s) => {
+          if (s === 'running') {
+            setExecState('running')
+            updateCursorJob(taskId, { status: 'running' })
+          }
+        },
+      }).then(({ status, summary: resultText }) => {
+        const finalStatus = (status === 'done' ? 'done' : status === 'rejected' ? 'rejected' : status === 'timeout' ? 'timeout' : 'error') as typeof taskMeta.status
+        updateCursorJob(taskId, { status: finalStatus })
+        pushActivity('result', resultText, {
+          agentId: 'engineer', agentIcon: '💻', agentDisplay: 'Cursor',
+          taskMeta: { ...taskMeta, status: finalStatus },
         })
         setExecState('idle')
         setLastResult(null)
       })
     } catch {
-      pushActivity('warning', '派送失敗，請確認 Desktop Worker 正在運行（worker.py）', {
+      pushActivity('warning', '派送失敗 — 請確認 cursor_worker.py 常駐且 VITE_APPROVAL_TOKEN 已設', {
         agentId: 'assistant', agentIcon: '⚠️', agentDisplay: 'OneAI',
       })
       setExecState('idle')
@@ -239,22 +275,33 @@ export default function ChatInput() {
   }
 
   const execLabel = {
-    idle: '💻 在 Cursor 執行',
+    idle: '💻 送到 Cursor（選專案）',
     dispatching: '⏳ 派送中…',
     running: '⚙️ Cursor 執行中…',
   }[execState]
+
+  const cursorSummary = lastUserMsg.slice(0, 120) || '實作工程師方案'
 
   return (
     <div className="chat-wrap">
       {lastResult?.can_execute && (
         <button
           className="execute-btn glass"
-          onClick={dispatchToCursor}
+          onClick={openCursorPanel}
           disabled={execState !== 'idle'}
-          title="程式碼送到桌機 worker.py → Cursor IDE 執行並回報結果"
+          title="選擇 repo 專案 → 送到桌機 Cursor IDE（手機不看 code）"
         >
           {execLabel}
         </button>
+      )}
+
+      {showCursorPanel && (
+        <CursorPanel
+          taskSummary={cursorSummary}
+          onClose={() => setShowCursorPanel(false)}
+          onConfirm={confirmCursorDispatch}
+          busy={execState !== 'idle'}
+        />
       )}
 
       {/* 語音辨識預覽條 */}

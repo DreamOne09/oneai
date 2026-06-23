@@ -66,7 +66,7 @@ def main(argv: list[str]) -> int:
     p.add_argument("text", help="記憶內容")
     p.add_argument("--title", default=None)
     p.add_argument("--tags", default="", help="逗號分隔")
-    p.add_argument("--kind", default="memory", choices=["memory", "preference", "reflection", "sop"])
+    p.add_argument("--kind", default="memory", choices=["memory", "preference", "reflection", "sop", "system"])
     args = p.parse_args(argv[1:])
     tags = [t.strip() for t in args.tags.split(",") if t.strip()]
     remember(args.text, title=args.title, tags=tags, kind=args.kind)

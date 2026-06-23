@@ -160,7 +160,7 @@ server.tool(
   {
     text: z.string().describe('要記住的內容(偏好/反思/SOP)'),
     title: z.string().optional(),
-    kind: z.enum(['memory', 'preference', 'reflection', 'sop']).optional(),
+    kind: z.enum(['memory', 'preference', 'reflection', 'sop', 'system']).optional(),
     tags: z.string().optional().describe('逗號分隔'),
   },
   async ({ text, title, kind, tags }) => {

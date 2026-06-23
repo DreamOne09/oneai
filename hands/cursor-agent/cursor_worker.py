@@ -63,11 +63,12 @@ def _headers() -> dict:
     return {"Authorization": f"Bearer {WORKER_TOKEN}", "Content-Type": "application/json"}
 
 
-def _heartbeat(status: str = "idle", current_task: str | None = None) -> None:
+def _heartbeat(status: str = "idle", current_task: str | None = None, workspace_cwd: str | None = None) -> None:
     """每 HEARTBEAT_INTERVAL 秒向 approval-svc 回報心跳，讓 PWA Agent 面板顯示在線。"""
     payload = json.dumps({
         "agent_id": AGENT_ID, "display": AGENT_DISPLAY, "org": AGENT_ORG,
         "status": status, "current_task": current_task,
+        "workspace_cwd": workspace_cwd or DEFAULT_CWD,
     }).encode()
     req = urllib.request.Request(
         f"{BASE}/agents/heartbeat", data=payload, headers=_headers(), method="POST"
@@ -83,8 +84,8 @@ def _start_heartbeat_thread(get_status) -> None:
     def loop():
         while True:
             try:
-                st, task = get_status()
-                _heartbeat(st, task)
+                st, task, cwd = get_status()
+                _heartbeat(st, task, cwd)
             except Exception:
                 pass
             time.sleep(HEARTBEAT_INTERVAL)
@@ -118,6 +119,12 @@ def _report(task_id: str, result: dict) -> None:
     urllib.request.urlopen(req, timeout=15).close()
 
 
+def _project_label(cwd: str, prompt: str) -> str:
+    name = Path(cwd).name or cwd
+    preview = (prompt or "").replace("\n", " ").strip()[:48]
+    return f"[{name}] {preview}" if preview else f"[{name}]"
+
+
 def _run_cursor_agent(task: dict) -> dict:
     """執行 Cursor Agent 並回傳結果。"""
     if not CURSOR_KEY:
@@ -143,9 +150,11 @@ def _run_cursor_agent(task: dict) -> dict:
             ),
         )
         status = "done" if result.status == "finished" else "error"
+        text = result.result or "(Agent 完成,無文字輸出)"
         return {
             "status": status,
-            "output": result.result or "(Agent 完成,無文字輸出)",
+            "output": text,
+            "summary": text[:800],
             "agent_id": result.id,
         }
     except CursorAgentError as e:
@@ -166,10 +175,10 @@ def main() -> int:
     print(f"[cursor-worker] 只認領 type=cursor_agent 任務（agy 負責 shell/agent）", flush=True)
 
     # 共享狀態讓心跳執行緒讀取
-    _state = {"status": "idle", "task": None}
+    _state = {"status": "idle", "task": None, "cwd": DEFAULT_CWD}
 
     def get_status():
-        return _state["status"], _state["task"]
+        return _state["status"], _state["task"], _state["cwd"]
 
     _start_heartbeat_thread(get_status)
 
@@ -181,13 +190,18 @@ def main() -> int:
             if not task:
                 continue
             tid = task.get("id")
-            prompt_preview = (task.get("payload", {}).get("prompt") or "")[:60]
-            print(f"[cursor-worker] 認領任務 {tid}: {prompt_preview}", flush=True)
+            payload = task.get("payload", {})
+            prompt_preview = payload.get("prompt") or ""
+            cwd = payload.get("cwd") or DEFAULT_CWD
+            label = _project_label(cwd, prompt_preview)
+            print(f"[cursor-worker] 認領任務 {tid}: {label}", flush=True)
             _state["status"] = "running"
-            _state["task"] = prompt_preview
+            _state["task"] = label
+            _state["cwd"] = cwd
             result = _run_cursor_agent(task)
             _state["status"] = "idle"
             _state["task"] = None
+            _state["cwd"] = DEFAULT_CWD
             print(f"[cursor-worker] 任務 {tid} → {result['status']}", flush=True)
             _report(tid, result)
 

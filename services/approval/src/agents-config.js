@@ -6,17 +6,40 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
-export function loadAgentsConfig() {
+function loadJson(relativePath) {
   try {
     const __dir = dirname(fileURLToPath(import.meta.url))
-    const configPath = join(__dir, '..', '..', '..', 'config', 'oneai.agents.json')
+    const configPath = join(__dir, '..', '..', '..', relativePath)
     return JSON.parse(readFileSync(configPath, 'utf-8'))
   } catch {
-    return { context: {}, agents: {}, orgs: {} }
+    return null
   }
 }
 
+export function loadAgentsConfig() {
+  return loadJson('config/oneai.agents.json') ?? { context: {}, agents: {}, orgs: {} }
+}
+
 export const AGENTS_CONFIG = loadAgentsConfig()
+const ARCH_CONFIG = loadJson('config/oneai.system-architecture.json') ?? {}
+
+function buildSystemArchitectureBrief(arch) {
+  if (!arch.one_liner) return ''
+  const facts = (arch.critical_facts ?? []).map(f => `- ${f}`).join('\n')
+  const agy = arch.layers?.local?.agy_worker
+  const cur = arch.layers?.local?.cursor_worker
+  return `【OneAI 系統架構 v${arch._version ?? '?'}】
+${arch.one_liner}
+
+雲端：approval-svc（編排+任務佇列）+ rag-svc（記憶）；PWA ${arch.layers?.phone?.url ?? 'oneai-mengyi.zeabur.app'}
+本機：${agy?.file ?? 'worker.py'}（${(agy?.task_types ?? []).join('/')}）與 ${cur?.file ?? 'cursor_worker.py'}（${(cur?.task_types ?? []).join('/')}）**各自**反向輪詢 approval-svc，互不轉派。
+
+必知事實：
+${facts}
+`
+}
+
+export const ONEAI_SYSTEM_ARCHITECTURE = buildSystemArchitectureBrief(ARCH_CONFIG)
 const MENGYI_CONTEXT = AGENTS_CONFIG.context ?? {}
 
 const trinity = MENGYI_CONTEXT.trinity ?? {}
@@ -105,7 +128,7 @@ function buildAgentSystems(config) {
   for (const [id, cfg] of Object.entries(config.agents ?? {})) {
     if (id === 'orchestrator' || id.includes('/')) continue
     const role = AGENT_ROLE_PROMPTS[id] ?? cfg.description ?? `你是孟一的 ${cfg.display ?? id}。`
-    systems[id] = `${MENGYI_BRIEF}\n${role}`
+    systems[id] = `${MENGYI_BRIEF}\n${ONEAI_SYSTEM_ARCHITECTURE}\n${role}`
   }
   return systems
 }

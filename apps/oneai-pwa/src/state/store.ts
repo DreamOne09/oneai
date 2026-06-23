@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { ActivityItem, ActivityKind, AgentStatus, Approval } from '../types'
+import type { ActivityItem, ActivityKind, AgentStatus, Approval, CursorJob, TaskMeta } from '../types'
 
 interface PushOpts {
   agentId?: string
@@ -11,6 +11,7 @@ interface PushOpts {
   brainLearned?: boolean
   memoryQuery?: string
   agentDetails?: import('../types').AgentDetail[]
+  taskMeta?: TaskMeta
 }
 
 interface OneAIState {
@@ -21,9 +22,10 @@ interface OneAIState {
   approvals: Approval[]
   pendingMessage: string | null
   currentModel: string | null
-  hiddenAgentIds: string[]   // 篩選：被隱藏的 agent id 列表
+  hiddenAgentIds: string[]
   memoryHighlight: string | null
   requestedTab: 'chat' | 'agents' | 'memory' | 'settings' | null
+  cursorJobs: CursorJob[]
 
   setStatus: (s: AgentStatus) => void
   setConnected: (c: boolean) => void
@@ -39,6 +41,8 @@ interface OneAIState {
   requestTab: (tab: NonNullable<OneAIState['requestedTab']>) => void
   clearRequestedTab: () => void
   clearMemoryHighlight: () => void
+  upsertCursorJob: (job: CursorJob) => void
+  updateCursorJob: (taskId: string, patch: Partial<CursorJob>) => void
 }
 
 const uid = () =>
@@ -57,6 +61,7 @@ export const useOneAI = create<OneAIState>()(
       hiddenAgentIds: [],
       memoryHighlight: null,
       requestedTab: null,
+      cursorJobs: [],
 
       setStatus: (status) => set({ status }),
       setConnected: (connected) => set({ connected }),
@@ -80,6 +85,7 @@ export const useOneAI = create<OneAIState>()(
               brainLearned: opts?.brainLearned,
               memoryQuery: opts?.memoryQuery,
               agentDetails: opts?.agentDetails,
+              taskMeta: opts?.taskMeta,
             },
             ...st.activities,
           ].slice(0, 80),
@@ -110,6 +116,16 @@ export const useOneAI = create<OneAIState>()(
       requestTab: (tab) => set({ requestedTab: tab }),
       clearRequestedTab: () => set({ requestedTab: null }),
       clearMemoryHighlight: () => set({ memoryHighlight: null }),
+
+      upsertCursorJob: (job) =>
+        set((st) => ({
+          cursorJobs: [job, ...st.cursorJobs.filter(j => j.taskId !== job.taskId)].slice(0, 12),
+        })),
+
+      updateCursorJob: (taskId, patch) =>
+        set((st) => ({
+          cursorJobs: st.cursorJobs.map(j => j.taskId === taskId ? { ...j, ...patch } : j),
+        })),
     }),
     {
       name: 'oneai-state',
@@ -118,6 +134,7 @@ export const useOneAI = create<OneAIState>()(
         activities: st.activities,
         currentModel: st.currentModel,
         hiddenAgentIds: st.hiddenAgentIds,
+        cursorJobs: st.cursorJobs,
       }),
     },
   ),

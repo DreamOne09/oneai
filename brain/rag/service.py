@@ -27,13 +27,13 @@ class QueryReq(BaseModel):
     query: str = Field(min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
     max_chars: int = Field(default=DEFAULT_MAX_CHARS, ge=200)
-    kind: str | None = Field(default=None, pattern="^(memory|preference|reflection|sop)$")
+    kind: str | None = Field(default=None, pattern="^(memory|preference|reflection|sop|system)$")
 
 
 class RememberReq(BaseModel):
     text: str = Field(min_length=1)
     title: str | None = None
-    kind: str = Field(default="memory", pattern="^(memory|preference|reflection|sop)$")
+    kind: str = Field(default="memory", pattern="^(memory|preference|reflection|sop|system)$")
     tags: list[str] | None = None
 
 
