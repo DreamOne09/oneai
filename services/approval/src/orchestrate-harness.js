@@ -39,7 +39,7 @@ export async function runOrchestrateTurn(deps, input) {
     CHAT_DEFAULT_MODEL,
     CHAT_FALLBACK_CHAIN,
     RESEARCH_KWS,
-    DEFAULT_ROUTING,
+    ROUTING_TRIGGERS,
     extractCodeBlock,
     MENGYI_BRIEF,
   } = deps
@@ -80,19 +80,19 @@ export async function runOrchestrateTurn(deps, input) {
     }
   }
 
-  // ② RAG + 路由並行（M：fact/preference vs episodic/memory 分開檢索）
+  // ② RAG + 路由並行（召回時不過濾 kind — 舊 chunk 可能無 metadata）
   emit('rag_start')
   const recallIntent = needsRecall(userMsg) || explicitRemember
-  const ragKind = recallIntent ? 'preference' : 'memory'
   const [rawMemories, agentIdsFromLLM] = await Promise.all([
-    ragQuery(userMsg, 4, ragKind),
+    ragQuery(userMsg, recallIntent ? 6 : 4, null),
     detectAgentsLLM(userMsg, ''),
   ])
   const memories = filterMemories(rawMemories, userMsg)
   const memoryBlock = buildMemoryBlock(memories) + workerBlock
   emit('rag_done', { count: memories.length })
 
-  const agentIds = mergeAgentRoute(agentIdsFromLLM, userMsg, RESEARCH_KWS, DEFAULT_ROUTING.butler)
+  const butlerKws = ROUTING_TRIGGERS.butler ?? []
+  const agentIds = mergeAgentRoute(agentIdsFromLLM, userMsg, RESEARCH_KWS, butlerKws)
   emit('route_done', { agents: agentIds.length ? agentIds : ['coach'] })
 
   // ③ 梅蘭直答

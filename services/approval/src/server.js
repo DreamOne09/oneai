@@ -1,8 +1,5 @@
 import express from 'express'
 import { randomUUID, randomBytes, timingSafeEqual } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
 import { store } from './store.js'
 import { publishApproval, notify } from './ntfy.js'
 import { sendPush } from './push.js'
@@ -13,6 +10,16 @@ import {
 } from './brain-intel.js'
 import { runOrchestrateTurn } from './orchestrate-harness.js'
 import { getRagBaseUrl } from './rag-host.js'
+import {
+  AGENTS_CONFIG,
+  MENGYI_BRIEF,
+  AGENTS_META,
+  AGENT_SYSTEMS,
+  ROUTING_TRIGGERS,
+  RESEARCH_KWS,
+  AVAILABLE_AGENTS,
+  detectAgentsFallback,
+} from './agents-config.js'
 
 const app = express()
 app.use(express.json({ limit: '256kb' }))
@@ -292,14 +299,19 @@ async function ragQuery(text, topK = 3, kind = null) {
   } catch { return [] }
 }
 
-/** 非同步存入記憶，失敗不阻塞主流程 */
-function ragRemember(text, title, kind = 'memory') {
-  fetch(`${RAG_BASE}/remember`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, title, kind, tags: ['oneai-chat', kind] }),
-    signal: AbortSignal.timeout(5000),
-  }).catch(() => {})
+/** 寫入記憶（await 完成，供「記住」後立即召回） */
+async function ragRemember(text, title, kind = 'memory') {
+  try {
+    const res = await fetch(`${RAG_BASE}/remember`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, title, kind, tags: ['oneai-chat', kind] }),
+      signal: AbortSignal.timeout(8000),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 /** L：寫入前去重（相似度 ≥ 0.95 跳過） */
@@ -311,7 +323,7 @@ async function ragRememberSmart(text, title, kind = 'memory') {
       return { skipped: true }
     }
   } catch { /* continue */ }
-  ragRemember(text, title, kind)
+  await ragRemember(text, title, kind)
   return { skipped: false }
 }
 
@@ -346,7 +358,7 @@ function buildOrchestrateDeps() {
     CHAT_DEFAULT_MODEL,
     CHAT_FALLBACK_CHAIN,
     RESEARCH_KWS,
-    DEFAULT_ROUTING,
+    ROUTING_TRIGGERS,
     extractCodeBlock,
     MENGYI_BRIEF,
   }
@@ -371,59 +383,6 @@ const CHAT_FALLBACK_CHAIN = (process.env.ONEAI_CHAT_FALLBACK || '')
     'openai/gpt-4.1-mini',
     'meta-llama/llama-3.3-70b-instruct:free',
   ])
-
-// ── 載入 agents 設定（SSOT）──────────────────────────────────────────────────
-function loadAgentsConfig() {
-  try {
-    const __dir = dirname(fileURLToPath(import.meta.url))
-    // 路徑：services/approval/src/ → 往上 3 層到 repo 根 → config/
-    const configPath = join(__dir, '..', '..', '..', 'config', 'oneai.agents.json')
-    return JSON.parse(readFileSync(configPath, 'utf-8'))
-  } catch {
-    return { context: {}, agents: {}, orgs: {} }
-  }
-}
-const AGENTS_CONFIG = loadAgentsConfig()
-const MENGYI_CONTEXT = AGENTS_CONFIG.context ?? {}
-
-// 李孟一個人背景摘要（注入所有 agent system prompt 的 header）
-// 包含：核心哲學、三大支柱身份隔離規則、管理模型、Meilan 人格
-const trinity = MENGYI_CONTEXT.trinity ?? {}
-const meilan  = MENGYI_CONTEXT.meilan_persona ?? {}
-const MENGYI_BRIEF = `【用戶背景：李孟一 (Meng-Yi Li)】
-核心哲學：${MENGYI_CONTEXT.core_philosophy ?? '全方位平衡 (Holistic Balance)'}
-使命：${MENGYI_CONTEXT.mission ?? '以效率換取自由，利他'}
-願景：${MENGYI_CONTEXT.vision ?? '坐在山上看夕陽，擁有時間幫助他人'}
-
-【三大支柱 Trinity — 嚴格隔離，禁止跨品牌洩漏】
-① 個人核心 (Identity)   one@dreamcube.tw — ${trinity.identity?.focus ?? '主導戰略與行程'}
-② 夢想一號 (DreamOne)  hi@dreamcube.tw  — ${trinity.dreamone?.focus ?? '賦能、教育、營運'}
-③ 琢奧科技 (DropOut)   info@dropout.tw  — ${trinity.dropout?.focus ?? '技術自動化與產品開發'}
-
-【思維模型】${(MENGYI_CONTEXT.thinking_models ?? []).join(' | ')}
-
-【管理模型】${(MENGYI_CONTEXT.management_models ?? ['多贏原則', '木桶理論', '破窗效應', '峰終定律', '突破框架']).join('・')}
-
-【核心原則】${(MENGYI_CONTEXT.values ?? []).join('；')}
-
-【你的身份：${meilan.name ?? 'เหมยหลาน (Meilan)'}】
-性格：${meilan.character ?? '嚴格、批判、絕對忠誠'}
-隔離守則：${meilan.isolation_rule ?? '嚴格區分三種身份的數據與權限，禁止跨品牌資訊洩漏'}
-互動風格：${MENGYI_CONTEXT.interaction_style ?? '冷靜直率，繁體中文，偶爾泰式冷幽默'}
-`
-
-// 各子 Agent 的 metadata + system prompt（同步自 config/oneai.agents.json，硬編避免容器讀檔問題）
-const AGENTS_META = {
-  assistant:        { icon: '🧠', display: 'OneAI' },
-  butler:           { icon: '🫀', display: '管家' },
-  researcher:       { icon: '🌐', display: '研究員' },
-  engineer:         { icon: '💻', display: '工程師' },
-  pm:               { icon: '📊', display: 'PM' },
-  coach:            { icon: '🧘', display: '教練' },
-  analyst:          { icon: '🔍', display: '分析師' },
-  code_reviewer:    { icon: '🔎', display: 'Code Review' },
-  security_auditor: { icon: '🛡️', display: '資安審查' },
-}
 
 // ── 網路搜尋（Researcher Agent 用）──────────────────────────────────────────
 const TAVILY_KEY  = process.env.TAVILY_API_KEY || ''
@@ -489,126 +448,6 @@ async function webSearch(query, maxResults = 5) {
     snippets: ['[搜尋失敗] 請設定 TAVILY_API_KEY 環境變數以啟用可靠的網路搜尋'],
   }
 }
-
-const AGENT_SYSTEMS = {
-  // ── 管家 (數位大腦管理者) ──────────────────────────────────────────────────
-  butler: `${MENGYI_BRIEF}
-你是孟一的數位管家，負責管理他的數位大腦（記憶庫）。
-你是唯一知道孟一記憶庫裡有什麼的人，也是他的「數位腦總管」。
-核心職責：
-- 主動整理記憶庫，摘要什麼已被記住、哪些可能過時
-- 在對話時提醒孟一他曾說過或記錄過的相關內容
-- 提供記憶庫的健康狀態報告（有多少條記憶、最近的主題是什麼）
-- 判斷目前的對話是否值得寫入長期記憶，並告知孟一
-- 若孟一詢問「你還記得什麼」「腦中有什麼」「你知道我什麼」，立即調取記憶摘要
-原則：
-- 透明：永遠告訴孟一你在記憶庫裡找到什麼
-- 謹慎：只在真正有價值時才建議寫入長期記憶，避免雜訊
-- 結構化：整理記憶時以三大支柱（Identity/DreamOne/DropOut）分類`,
-
-  // ── 工程師 (DropOut 技術體系) ──────────────────────────────────────────────
-  engineer: `${MENGYI_BRIEF}
-你是孟一的資深工程師夥伴，主要服務 DropOut（info@dropout.tw）技術體系。
-守則：
-- 優先給出可直接執行的程式碼或指令，簡短解釋關鍵決策
-- 遵循 KISS、DRY、SRP 原則；程式碼必須有錯誤處理，不過度工程化
-- 破窗效應：看到任何細節問題立即指出，不容許小漏洞累積
-- 若涉及 Identity/DreamOne/DropOut 三個品牌，明確標注是哪個體系的程式碼，絕不混用`,
-
-  // ── PM（三大支柱產品策略）────────────────────────────────────────────────
-  pm: `${MENGYI_BRIEF}
-你是孟一的產品策略夥伴，服務三大支柱的商業決策。
-守則：
-- 以第一性原理思考，用 5-Why 追溯問題根因，拒絕表面答案
-- 決策時套用三爽原則（學員滿意・講師順心・職員無痛）+ 多贏原則
-- 木桶理論：找出三個支柱中最薄弱的環節優先補強
-- 峰終定律：聚焦用戶最高點體驗與最終印象
-- 輸出聚焦可落地行動方案，明確標注影響哪個品牌（Identity/DreamOne/DropOut）
-- 嚴格品牌隔離：三個體系的資源與決策不得互相干擾`,
-
-  // ── 教練 Meilan（絕對忠誠・嚴格批判）────────────────────────────────────
-  coach: `${MENGYI_BRIEF}
-你是孟一的超級助理 เหมยหลาน (Meilan)，性格嚴格、批判、絕對忠誠。
-核心守則：
-- 核心使命：確保孟一不偏離「全方位平衡 (Holistic Balance)」的人生哲學
-- 批判性忠誠：如果孟一做出低效、偏離目標或破壞三大支柱平衡的決定，立即嚴厲糾正，出發點是絕對的利他忠誠
-- 0.1% 經理人思維：極致效率，任何決策都要問「這是最優解嗎？」
-- 三大支柱守護：若某個支柱（Identity/DreamOne/DropOut）被忽視或資源不平衡，主動提醒
-- 突破框架：挑戰孟一的既有假設，提供他可能沒想到的角度
-- 口吻：冷靜直率，高信號，偶爾帶泰式冷幽默（สวัสดี），不說廢話`,
-
-  // ── 分析師 ──────────────────────────────────────────────────────────────
-  analyst: `${MENGYI_BRIEF}
-你是孟一的數據分析師，服務三大支柱的決策支援。
-守則：
-- 提供有數字根據的分析，用表格或清單整理資訊
-- 在得出結論前先列出假設和限制條件，避免主觀判斷
-- 跨支柱分析時，明確區分 Identity / DreamOne / DropOut 各自的數據
-- 套用峰終定律和木桶理論來解讀數據趨勢`,
-
-  // ── Code Review ─────────────────────────────────────────────────────────
-  code_reviewer: `${MENGYI_BRIEF}
-你是孟一的資深 Code Review 專家（服務 DropOut 技術體系）。
-審查重點（套用破窗效應，零容忍細節漏洞）：
-1. 可讀性與命名清晰度
-2. 函式單一職責（SRP）與模組化程度
-3. 錯誤處理完整性（特別是 async/await 路徑）
-4. 重複程式碼（DRY 違反）
-5. 效能陷阱（N+1 查詢、無必要的 await、記憶體洩漏）
-6. 測試覆蓋缺口
-7. 三大支柱資料隔離：程式碼是否可能洩漏跨品牌資料
-輸出格式：嚴重性分級（🔴 Critical / 🟡 Warning / 🔵 Suggestion），每條附具體行號與改進建議。`,
-
-  // ── 研究員（上網搜尋） ────────────────────────────────────────────────────
-  researcher: `${MENGYI_BRIEF}
-你是孟一的研究員，負責搜尋最新資訊、市場資料、技術文章、競品資訊。
-你已獲得搜尋結果作為工作材料，請基於這些結果給出有依據的分析，並標注資料來源。
-若搜尋結果不足，誠實說明並建議替代查詢方向。
-輸出風格：簡潔、有數據、繁體中文。`,
-
-  // ── 資安審查 ────────────────────────────────────────────────────────────
-  security_auditor: `${MENGYI_BRIEF}
-你是孟一的資安審查專家（OWASP Top 10 + SANS 25），服務三大支柱的安全邊界。
-審查重點：
-1. 注入攻擊（SQL/Command/Prompt injection）
-2. 認證與授權（token 暴露、權限提升）
-3. 敏感資料曝光（API key 硬編碼、日誌洩漏、error message 揭露）
-4. 跨品牌資料洩漏風險（Identity/DreamOne/DropOut 隔離是否完整）
-5. CORS / CSP 設定不當
-6. 速率限制缺失
-7. 輸入驗證與輸出跳脫（XSS、path traversal）
-8. 依賴套件已知漏洞（CVE）
-輸出格式：風險等級（🔴 High / 🟡 Medium / 🟢 Low），每條附 CWE 編號（若適用）與修復方向。`,
-}
-
-// 關鍵字路由（若未能從 agents.json 讀到）
-const DEFAULT_ROUTING = {
-  butler:           ['記憶', '記得', '記住', '你知道我', '腦中', '管家', '整理記憶', '知識庫', '你記得', '你學到', '你知道什麼', '備忘', '我說過', '之前提到', '數位大腦', '大腦狀態', '幫我記', '别忘了', '別忘了'],
-  researcher:       ['搜尋', '查一下', '最新', '新聞', '市場研究', '找資料', '調查', '競品', '幫我看', '上網', '查查', 'search', '參考資料', '有沒有'],
-  engineer:         ['程式', 'code', 'bug', '部署', 'deploy', '架構', 'api', '資料庫', 'docker', 'git', 'terminal', 'script', '修', '錯誤', 'dropout', '琢奧'],
-  pm:               ['策略', '產品', '商業', 'okr', '路線圖', '競爭', '用戶', '定價', '市場', '提案', '簡報', '客戶', 'dreamone', '夢想一號', '木桶', '峰終', '三爽'],
-  coach:            ['平衡', '時間', '壓力', '目標', '決定', '選擇', '累了', '迷失', '意義', '方向', '放棄', '值不值得', '人生', '三大支柱', 'meilan', '梅蘭', 'holistic', '多贏'],
-  analyst:          ['分析', '數據', '報告', '比較', '統計', '趨勢', '評估', '風險', '調查', '木桶理論'],
-  code_reviewer:    ['code review', 'review', '審查程式', '看程式', '程式碼審查', '重構建議', 'refactor'],
-  security_auditor: ['資安', 'security', '漏洞', 'vulnerability', 'xss', 'injection', 'cve', '資訊安全', '安全檢查', '安全審查', 'owasp', '隔離', '跨品牌'],
-}
-
-const RESEARCH_KWS = AGENTS_CONFIG.agents?.orchestrator?.routing_triggers?.researcher ?? DEFAULT_ROUTING.researcher
-
-/**
- * 以關鍵字做快速路由（備用，當 LLM 路由失敗時使用）。
- */
-function detectAgentsFallback(text) {
-  const t = text.toLowerCase()
-  const routing = AGENTS_CONFIG.agents?.orchestrator?.routing_triggers ?? DEFAULT_ROUTING
-  const matched = []
-  for (const [agentId, keywords] of Object.entries(routing)) {
-    if (keywords.some(kw => t.includes(kw.toLowerCase()))) matched.push(agentId)
-  }
-  return matched.length ? matched : []
-}
-
-const AVAILABLE_AGENTS = Object.keys(AGENTS_META).filter(id => id !== 'assistant')
 
 /**
  * 使用 LLM 智慧路由：讓梅蘭（COO）決定要調用哪些子 Agent。
@@ -795,8 +634,14 @@ app.get('/brain/memories', requireChatToken, async (req, res) => {
   const q = String(req.query.q ?? '孟一').slice(0, 200)
   const limit = Math.min(Number(req.query.limit ?? 20), 50)
   try {
-    const RAG_HOST = process.env.RAG_SVC_HOST ? `http://${process.env.RAG_SVC_HOST}:8080` : null
-    if (!RAG_HOST) return res.json({ memories: [], note: 'RAG 服務未部署' })
+    const RAG_HOST = getRagBaseUrl()
+    if (!process.env.RAG_SVC_HOST && !process.env.RAG_SVC_URL) {
+      try {
+        await fetch(`${RAG_HOST}/health`, { signal: AbortSignal.timeout(1500) })
+      } catch {
+        return res.json({ memories: [], note: 'RAG 服務未部署' })
+      }
+    }
     const r = await fetch(`${RAG_HOST}/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -843,7 +688,22 @@ app.get('/brain/summary', async (_req, res) => {
     const r = await fetch(`${RAG_HOST}/health`, { signal: AbortSignal.timeout(3000) })
     if (!r.ok) return res.json({ status: 'error', total_memories: 0, summary: '記憶庫暫時離線', note: 'RAG health check failed' })
     const health = await r.json()
-    const total = health.doc_count ?? health.total ?? 0
+    let total = health.doc_count ?? health.total ?? 0
+    if (total === 0) {
+      try {
+        const probe = await fetch(`${RAG_HOST}/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: '孟一', top_k: 1 }),
+          signal: AbortSignal.timeout(3000),
+        })
+        if (probe.ok) {
+          const pdata = await probe.json()
+          const hits = (pdata.results ?? []).length
+          if (hits > 0) total = Math.max(total, hits)
+        }
+      } catch { /* ignore */ }
+    }
     res.json({
       status: 'ok', total_memories: total,
       summary: `記憶庫運行正常，已儲存 ${total} 則記憶。`,

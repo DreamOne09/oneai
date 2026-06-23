@@ -79,10 +79,6 @@ def run_shell(cmd: str, cwd: str | None = None, timeout: int | None = None) -> E
 
 
 def run_agent_task(prompt: str, cwd: str | None = None, timeout: int | None = None) -> ExecResult:
-    """把高層任務交給 Antigravity CLI 自主完成(編碼/測試/重構)。
-
-    TODO: 對齊實際 CLI:headless 旗標、模型參數、輸出格式。
-    這裡先以 `<cmd> --headless --prompt <text>` 形式示意。
-    """
-    args = [ANTIGRAVITY_CMD, "--headless", "--prompt", prompt]
+    """把高層任務交給 Antigravity CLI（agy -p 非互動模式）。"""
+    args = [ANTIGRAVITY_CMD, "-p", prompt]
     return _run(args, cwd, timeout or BRIDGE_TIMEOUT)

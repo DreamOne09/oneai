@@ -58,6 +58,12 @@ def health():
             name=config.COLLECTION, embedding_function=config.get_embedding_function()
         )
         count = col.count()
+        if count == 0:
+            try:
+                peek = col.get(include=[], limit=5000)
+                count = len(peek.get("ids") or [])
+            except Exception:
+                pass
     except Exception:
         count = 0
     return {"ok": True, "collection": config.COLLECTION, "doc_count": count, "total": count}
