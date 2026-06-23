@@ -81,7 +81,7 @@ bridge/mcp-core/          MCP 工具（LibreChat / Cursor 用）
 config/oneai.agents.json  Agent 路由 SSOT
 config/oneai.models.json  模型 SSOT
 scripts/brain-smoke.py    雲端煙霧測試
-scripts/e2e-test.py       端到端測試
+scripts/e2e-test.py       API 契約煙霧（SSE/token/Butler/task；`--rate-limit` 可選）
 ```
 
 ---

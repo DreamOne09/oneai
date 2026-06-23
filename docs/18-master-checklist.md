@@ -165,8 +165,8 @@ python scripts\zeabur-cli.py services
 cd C:\Users\b1993\.cursor\projects\empty-window
 node scripts\brain-intel.test.js
 python scripts\brain-smoke.py
-python scripts\e2e-test.py
-python scripts\user-scenario-sim.py
+python scripts\e2e-test.py              # 契約煙霧（預設不 hammer rate limit）
+python scripts\user-scenario-sim.py     # 10 情境旅程
 python scripts\human-loop-sim.py
 ```
 

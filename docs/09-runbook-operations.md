@@ -35,7 +35,7 @@ python hands/cursor-agent/cursor_worker.py   # Cursor 任務（選配）
 | 派送 Cursor 任務 | 對話含程式 → 「在 Cursor 執行」 |
 | 審核高風險動作 | PWA 審核卡片 / Web Push |
 | 跑雲端測試 | `python scripts/brain-smoke.py` |
-| 跑 E2E | `python scripts/e2e-test.py` |
+| 跑 E2E | `python scripts/e2e-test.py`（可加 `--rate-limit` / `--legacy-chat`） |
 
 ---
 
