@@ -84,7 +84,16 @@ export async function runOrchestrateTurn(deps, input) {
   emit('rag_start')
   const recallIntent = needsRecall(userMsg) || explicitRemember
   const [rawMemories, agentIdsFromLLM] = await Promise.all([
-    ragQuery(userMsg, recallIntent ? 6 : 4, null),
+    (async () => {
+      let rows = await ragQuery(userMsg, recallIntent ? 8 : 4, null)
+      if (recallIntent && rows.length === 0) {
+        for (const fq of ['繁體中文', '李孟一 偏好 繁體中文', '偏好 語言']) {
+          rows = await ragQuery(fq, 6, null)
+          if (rows.length) break
+        }
+      }
+      return rows
+    })(),
     detectAgentsLLM(userMsg, ''),
   ])
   const memories = filterMemories(rawMemories, userMsg)

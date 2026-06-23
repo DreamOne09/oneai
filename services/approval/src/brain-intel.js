@@ -1,6 +1,8 @@
 /** 數位大腦智慧層 — 記憶過濾、路由輔助、選擇性寫回 */
 
 export const MIN_MEMORY_SCORE = 0.6
+/** 召回意圖時語意距離較大，門檻需低於一般注入 */
+export const RECALL_MEMORY_SCORE = 0.2
 export const DEDUP_SCORE = 0.95
 
 const SMALL_TALK_RE = /^(嗨|你好|哈囉|hello|hi|hey|早|晚安|午安|谢谢|謝謝|thanks|ok|好的|收到|在嗎|在吗|test)[\s!?.，。~～]*$/i
@@ -22,7 +24,7 @@ export function memoryScore(m) {
 
 export function filterMemories(raw, userMsg) {
   const recall = needsRecall(userMsg)
-  const minScore = recall ? 0.35 : MIN_MEMORY_SCORE
+  const minScore = recall ? RECALL_MEMORY_SCORE : MIN_MEMORY_SCORE
   const rows = (raw ?? []).filter(m => {
     const text = memoryToText(m)
     if (!text.trim()) return false
@@ -31,7 +33,19 @@ export function filterMemories(raw, userMsg) {
     return true
   })
   if (isSmallTalk(userMsg) && !recall) return []
-  return rows.slice(0, recall ? 5 : 3)
+  const out = rows.slice(0, recall ? 5 : 3)
+  // 召回意圖但全被 score 濾掉時，保留最佳 1~2 筆（避免 paraphrase 查詢 mem=0）
+  if (recall && out.length === 0 && (raw ?? []).length > 0) {
+    const fallback = (raw ?? [])
+      .filter(m => {
+        const text = memoryToText(m)
+        return text.trim() && !/\[E2E TEST\]/i.test(text)
+      })
+      .sort((a, b) => memoryScore(b) - memoryScore(a))
+      .slice(0, 2)
+    if (fallback.length && memoryScore(fallback[0]) >= 0.12) return fallback
+  }
+  return out
 }
 
 export function isSmallTalk(text) {

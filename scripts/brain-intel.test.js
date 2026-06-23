@@ -10,6 +10,7 @@ import {
   mergeAgentRoute,
   enforceSearchReply,
   classifyMemoryKind,
+  RECALL_MEMORY_SCORE,
   MIN_MEMORY_SCORE,
 } from '../services/approval/src/brain-intel.js'
 
@@ -41,8 +42,8 @@ const raw = [
 const filtered = filterMemories(raw, '我下週出差曼谷的計畫')
 assert(filtered.length === 1 && filtered[0].text === '高相關', 'filter score + e2e')
 assert(filterMemories(raw, '嗨').length === 0, 'small talk no memory inject')
-const recallRaw = [{ text: '偏好繁體中文', score: 0.45 }]
-assert(filterMemories(recallRaw, '你還記得偏好嗎').length === 1, 'recall lower threshold')
+const recallRaw = [{ text: '偏好繁體中文', score: 0.26 }]
+assert(filterMemories(recallRaw, '你還記得偏好嗎').length === 1, 'recall threshold 0.20')
 
 assert(!shouldRemember('嗨', '你好呀', { explicitRemember: false, smallTalk: true }), 'no remember small talk')
 assert(shouldRemember('記住：偏好', '好的', { explicitRemember: true, smallTalk: false }), 'remember explicit')
@@ -71,6 +72,7 @@ assert(enforced.includes('Search Tips'), 'enforce search source 3')
 assert(classifyMemoryKind('記住出差日期', true) === 'preference', 'fact kind')
 assert(classifyMemoryKind('今天天氣如何', false) === 'memory', 'episodic kind')
 
+assert(RECALL_MEMORY_SCORE === 0.2, 'recall score threshold 0.2')
 assert(MIN_MEMORY_SCORE === 0.6, 'score threshold 0.6')
 
 console.log(`\nbrain-intel: ${passed} passed, ${failed} failed`)
