@@ -72,7 +72,9 @@ def _run(args: list[str], cwd: str | None, timeout: int) -> ExecResult:
 
 def run_shell(cmd: str, cwd: str | None = None, timeout: int | None = None) -> ExecResult:
     """執行一般 shell 指令(已通過政策審核才呼叫)。"""
-    args = shlex.split(cmd, posix=(os.name != "nt"))
+    if os.name == "nt":
+        return _run(["cmd.exe", "/c", cmd], cwd, timeout or BRIDGE_TIMEOUT)
+    args = shlex.split(cmd, posix=True)
     if not args:
         return ExecResult(False, -1, "", "空指令")
     return _run(args, cwd, timeout or BRIDGE_TIMEOUT)

@@ -21,15 +21,17 @@ export function memoryScore(m) {
 }
 
 export function filterMemories(raw, userMsg) {
+  const recall = needsRecall(userMsg)
+  const minScore = recall ? 0.35 : MIN_MEMORY_SCORE
   const rows = (raw ?? []).filter(m => {
     const text = memoryToText(m)
     if (!text.trim()) return false
     if (/\[E2E TEST\]/i.test(text)) return false
-    if (memoryScore(m) > 0 && memoryScore(m) < MIN_MEMORY_SCORE) return false
+    if (memoryScore(m) > 0 && memoryScore(m) < minScore) return false
     return true
   })
-  if (isSmallTalk(userMsg) && !needsRecall(userMsg)) return []
-  return rows.slice(0, 3)
+  if (isSmallTalk(userMsg) && !recall) return []
+  return rows.slice(0, recall ? 5 : 3)
 }
 
 export function isSmallTalk(text) {

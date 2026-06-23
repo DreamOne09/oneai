@@ -1,18 +1,18 @@
 {
   "base": "https://oneai-approval.zeabur.app",
-  "ts": "2026-06-23T10:58:16Z",
+  "ts": "2026-06-23T11:24:13Z",
   "passed": 8,
   "total": 10,
   "scenarios": [
     {
       "solved": true,
-      "user_sees": "梅蘭回「สวัสดีค่ะ 李孟一。\n\n有什麼需要協助的嗎？請直接說明，以便我評估是否符…」",
+      "user_sees": "梅蘭回「สวัสดีค่ะ，孟一。\n很高興您上線。目前本機 Worker 狀態為 1 個…」",
       "blocker": null,
       "checklist_ids": [],
       "metrics": {
         "mem": 0,
         "learned": false,
-        "elapsed": 1.31
+        "elapsed": 1.93
       },
       "id": 1,
       "title": "開場寒暄",
@@ -51,7 +51,7 @@
           "butler"
         ],
         "mem": 0,
-        "reply_len": 201
+        "reply_len": 39
       },
       "id": 3,
       "title": "調出記憶",
@@ -59,7 +59,7 @@
     },
     {
       "solved": true,
-      "user_sees": "搜尋回覆 1370 字、5 來源",
+      "user_sees": "搜尋回覆 1820 字、5 來源",
       "blocker": null,
       "checklist_ids": [
         "A-04",
@@ -67,7 +67,7 @@
         "ENV-01"
       ],
       "metrics": {
-        "reply_len": 1370,
+        "reply_len": 1820,
         "sources": 5,
         "provider": "tavily"
       },
@@ -77,7 +77,7 @@
     },
     {
       "solved": true,
-      "user_sees": "3 位專家、合成=True、1660字",
+      "user_sees": "3 位專家、合成=True、1734字",
       "blocker": null,
       "checklist_ids": [
         "F-01",
@@ -86,7 +86,7 @@
       "metrics": {
         "agent_count": 3,
         "synthesis": true,
-        "reply_len": 1660
+        "reply_len": 1734
       },
       "id": 5,
       "title": "多專家分析",
@@ -94,16 +94,15 @@
     },
     {
       "solved": true,
-      "user_sees": "Header 🫀 0 條；worker 離線",
+      "user_sees": "Header 🫀 1 條；worker 在線",
       "blocker": null,
       "checklist_ids": [
-        "CLN-01",
-        "WRK-01"
+        "CLN-01"
       ],
       "metrics": {
         "health": true,
         "brain_ok": true,
-        "workers": 0
+        "workers": 1
       },
       "id": 6,
       "title": "看系統在線",
@@ -111,15 +110,15 @@
     },
     {
       "solved": false,
-      "user_sees": "任務卡在 queued（worker 未跑）",
+      "user_sees": "任務卡在 error（worker 未跑）",
       "blocker": "本機 worker.py 未啟動或 token 不符",
       "checklist_ids": [
         "WRK-01",
         "WRK-02"
       ],
       "metrics": {
-        "task_id": "f256327a-233c-4ceb-920d-ac994febe705",
-        "status": "queued"
+        "task_id": "cf714642-123b-4186-b04c-7a1263714a8d",
+        "status": "error"
       },
       "id": 7,
       "title": "手機控桌機 Shell",
@@ -127,7 +126,7 @@
     },
     {
       "solved": true,
-      "user_sees": "記憶庫 0 條；搜尋命中 5 筆",
+      "user_sees": "記憶庫 1 條；搜尋命中 5 筆",
       "blocker": null,
       "checklist_ids": [
         "I-01",
@@ -135,7 +134,7 @@
         "H-01"
       ],
       "metrics": {
-        "total": 0,
+        "total": 1,
         "query_hits": 5
       },
       "id": 8,
@@ -151,7 +150,7 @@
         "DEP-01"
       ],
       "metrics": {
-        "elapsed": 1.3
+        "elapsed": 1.17
       },
       "id": 9,
       "title": "真實思考進度",
@@ -159,7 +158,7 @@
     },
     {
       "solved": true,
-      "user_sees": "可派送 Cursor 任務 b6b25b75",
+      "user_sees": "可派送 Cursor 任務 c963f481",
       "blocker": null,
       "checklist_ids": [
         "WRK-03",
@@ -168,7 +167,7 @@
       "metrics": {
         "can_execute": true,
         "code_len": 60,
-        "task_id": "b6b25b75-2982-48ad-a8b7-30616f05f24a"
+        "task_id": "c963f481-b585-4f48-bfea-9295846b4c57"
       },
       "id": 10,
       "title": "寫程式跑 Cursor",

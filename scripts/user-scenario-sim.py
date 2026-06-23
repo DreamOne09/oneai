@@ -138,7 +138,7 @@ def s2():
 
 # ── S3 調記憶 ───────────────────────────────────────────────────────────────
 def s3():
-    time.sleep(2)  # 等 S2 記憶索引完成
+    time.sleep(5)  # 等 S2 記憶寫入並索引
     r = orchestrate('你還記得我偏好什麼語言嗎？')
     d = r['data']
     agents = [a.get('id') for a in (d.get('agents') or [])]

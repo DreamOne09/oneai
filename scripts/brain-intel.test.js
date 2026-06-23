@@ -41,6 +41,8 @@ const raw = [
 const filtered = filterMemories(raw, '我下週出差曼谷的計畫')
 assert(filtered.length === 1 && filtered[0].text === '高相關', 'filter score + e2e')
 assert(filterMemories(raw, '嗨').length === 0, 'small talk no memory inject')
+const recallRaw = [{ text: '偏好繁體中文', score: 0.45 }]
+assert(filterMemories(recallRaw, '你還記得偏好嗎').length === 1, 'recall lower threshold')
 
 assert(!shouldRemember('嗨', '你好呀', { explicitRemember: false, smallTalk: true }), 'no remember small talk')
 assert(shouldRemember('記住：偏好', '好的', { explicitRemember: true, smallTalk: false }), 'remember explicit')

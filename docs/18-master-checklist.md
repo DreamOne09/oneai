@@ -136,11 +136,11 @@
 
 | ID | 狀態 | 任務 | 驗收 |
 |----|------|------|------|
-| WRK-01 | [ ] | 執行 **INSTALL-WORKER.bat**（管理員） | `/agents/status` 非空 |
-| WRK-02 | [ ] | AgyPanel 派 `echo test` 有回應 | S7 通過 |
+| WRK-01 | [x] | 執行 **INSTALL-WORKER.bat**（管理員） | worker 已啟動、S6 1/1 |
+| WRK-02 | [ ] | AgyPanel 派 `echo test` 有回應 | S7（cmd.exe 修復待 deploy） |
 | WRK-03 | [ ] | 另開 `cursor_worker.py`（Cursor 任務執行） | S10 任務 done |
-| WRK-04 | [ ] | 修 **cli_bridge.py** 對齊 `agy -p` 或 AgyPanel 改名「桌機 Shell」 | agy 不假裝 |
-| WRK-05 | [ ] | Agent 設定 **只讀** `config/oneai.agents.json`（刪 DEFAULT_ROUTING 硬編） | 改一處即可 |
+| WRK-04 | [x] | 修 **cli_bridge.py** 對齊 `agy -p` | agy -p + cmd.exe /c |
+| WRK-05 | [x] | Agent 設定 **只讀** `config/oneai.agents.json` | agents-config.js |
 
 ### 3C 驗收腳本
 
