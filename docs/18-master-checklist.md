@@ -125,7 +125,7 @@
 | F-01 | [ ] | 手機合成模式 | S5 ✅ |
 | G-01 | [x] | SSE 真實進度 | S9 ✅ |
 | H-01 | [ ] | 記憶卡片可點 → Memory Tab | 需 DEP-01 + 手機實測 |
-| I-01 | [ ] | summary 與 RAG 同 doc_count | S6 部分（total=0 待 reindex） |
+| I-01 | [x] | summary 與 RAG 同 doc_count | S8 total≥1 |
 | J-01 | [ ] | RAG+路由並行 | harness |
 | J-02 | [ ] | 搜尋 5min cache | harness |
 | K-01 | [ ] | Worker 狀態注入 orchestrate | harness |
