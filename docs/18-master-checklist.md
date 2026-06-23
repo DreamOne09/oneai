@@ -2,7 +2,7 @@
 
 > **用途**：整合多輪對話所有未執行建議，逐項勾選直到交付。  
 > **驗收**：每完成一區塊 → 跑 `python scripts/user-scenario-sim.py`（10 情境）+ `python scripts/e2e-test.py`  
-> **最後模擬**：2026-06-23 10:10 UTC → **7/10 通過**（見 [§4](#4-十種使用者情境模擬結果)）  
+> **最後模擬**：2026-06-23 部署後 → **8/10 通過**（S9 SSE ✅；剩 S3 記憶召回、S7 worker）  
 > **相關**：[00-start-here](00-start-here.md) · [17-lessons-learned](17-lessons-learned-and-war-stories.md) · [docs/README](README.md)
 
 ---
@@ -34,14 +34,14 @@
 
 | ID | 狀態 | 任務 | 驗收 |
 |----|------|------|------|
-| DEP-01 | [ ] | **commit + push** 所有未提交改動（harness、SSE、PWA、brain/rag、文件） | git push 成功 |
-| DEP-02 | [ ] | 等 **oneai-approval** GitHub build 綠燈 | `/health` ok |
-| DEP-03 | [ ] | 等 **oneai-pwa-v2** GitHub build 綠燈 | PWA 可開 |
+| DEP-01 | [x] | **commit + push** 所有未提交改動（harness、SSE、PWA、brain/rag、文件） | git push 成功 |
+| DEP-02 | [x] | 等 **oneai-approval** GitHub build 綠燈 | `/health` ok |
+| DEP-03 | [x] | 等 **oneai-pwa-v2** GitHub build 綠燈 | PWA 可開 |
 | DEP-04 | [ ] | **手動 redeploy rag-svc**（`6a36aec746477d6038840bda`） | `/brain/summary` status=ok |
-| DEP-05 | [ ] | 確認 env：`TAVILY_API_KEY`、`RAG_SVC_HOST`、`ONEAI_WORKER_TOKEN` | brain-smoke 搜尋 OK |
-| DEP-06 | [ ] | 跑 `node scripts/brain-intel.test.js` | 20/20 |
-| DEP-07 | [ ] | 跑 `python scripts/brain-smoke.py` | 寒暄/記住/搜尋 OK |
-| DEP-08 | [ ] | 跑 `python scripts/e2e-test.py` | 全 PASS |
+| DEP-05 | [x] | 確認 env：`TAVILY_API_KEY`、`RAG_SVC_HOST`、`ONEAI_WORKER_TOKEN` | brain-smoke 搜尋 OK |
+| DEP-06 | [x] | 跑 `node scripts/brain-intel.test.js` | 20/20 |
+| DEP-07 | [x] | 跑 `python scripts/brain-smoke.py` | 寒暄/記住/搜尋 OK |
+| DEP-08 | [x] | 跑 `python scripts/e2e-test.py` | 全 PASS |
 
 **DEP-01 包含的本地未 push 檔案（摘要）**：
 - `services/approval/src/orchestrate-harness.js`（新）
@@ -59,31 +59,31 @@
 | ID | 狀態 | 任務 | 驗收 |
 |----|------|------|------|
 | SEC-01 | [ ] | **輪替 Zeabur API token**（曾硬編在 16 支 scripts） | 舊 token 失效 |
-| SEC-02 | [ ] | 刪除 scripts 內所有硬編 `sk-3t3...` | `grep sk-3t3 scripts/` 無結果 |
-| SEC-03 | [ ] | 合併 Zeabur 腳本為 `scripts/zeabur-cli.py`（讀 `ZEABUR_TOKEN` env） | 單一入口 |
-| SEC-04 | [ ] | 刪除一次性腳本：`check-deploy.py`、`fix-service-type.py` 等 15 支 | 只留 e2e/smoke/sim/audit |
+| SEC-02 | [x] | 刪除 scripts 內所有硬編 `sk-3t3...` | `grep sk-3t3 scripts/` 無結果 |
+| SEC-03 | [x] | 合併 Zeabur 腳本為 `scripts/zeabur-cli.py`（讀 `ZEABUR_TOKEN` env） | 單一入口 |
+| SEC-04 | [x] | 刪除一次性腳本：`check-deploy.py`、`fix-service-type.py` 等 15 支 | 只留 e2e/smoke/sim/audit |
 
 ### 1B 重複 Dockerfile
 
 | ID | 狀態 | 任務 |
 |----|------|------|
-| DKR-01 | [ ] | 刪 `Dockerfile.approval`、`Dockerfile.approval-svc-v2` |
-| DKR-02 | [ ] | 刪 `Dockerfile.oneai-pwa-v2`、`apps/oneai-pwa/Dockerfile.zeabur` |
-| DKR-03 | [ ] | 刪 `services/approval/Dockerfile.zeabur` |
-| DKR-04 | [ ] | 刪 `infra/zeabur/mongodb/Dockerfile` |
-| DKR-05 | [ ] | 確認 CI 只用 `services/approval/Dockerfile` + `apps/oneai-pwa/Dockerfile` |
+| DKR-01 | [x] | 刪 `Dockerfile.approval`、`Dockerfile.approval-svc-v2` |
+| DKR-02 | [x] | 刪 `Dockerfile.oneai-pwa-v2`、`apps/oneai-pwa/Dockerfile.zeabur` |
+| DKR-03 | [x] | 刪 `services/approval/Dockerfile.zeabur` |
+| DKR-04 | [x] | 刪 `infra/zeabur/mongodb/Dockerfile` |
+| DKR-05 | [x] | 確認 CI 只用 `services/approval/Dockerfile` + `apps/oneai-pwa/Dockerfile` |
 
 ### 1C PWA / 後端去重
 
 | ID | 狀態 | 任務 | 驗收 |
 |----|------|------|------|
-| CLN-01 | [ ] | **移除** `App.tsx` 的 `connectNtfy()` | 僅 heartbeat 設 connected |
-| CLN-02 | [ ] | 後端審核推播：Web Push 為主；ntfy 用 `NTFY_ENABLED=0` 關閉 | 無空跑 ntfy |
+| CLN-01 | [x] | **移除** `App.tsx` 的 `connectNtfy()` | 僅 heartbeat 設 connected |
+| CLN-02 | [x] | 後端審核推播：Web Push 為主；ntfy 用 `NTFY_ENABLED=0` 關閉 | 無空跑 ntfy |
 | CLN-03 | [ ] | deprecate `POST /chat`；e2e 改測 orchestrate | 文件標 deprecated |
 | CLN-04 | [ ] | rename `librechat.ts` → `orchestrate-client.ts` | import 全更新 |
 | CLN-05 | [ ] | 刪 `sendMessage` / `sendMessageWithMeta` dead exports | 無引用 |
 | CLN-06 | [ ] | 抽共用 `lib/task-client.ts`（ChatInput + AgyPanel） | DRY |
-| CLN-07 | [ ] | 移除或 dev-only **DevPanel**（生產不顯示 ✦） | 正式 UI 乾淨 |
+| CLN-07 | [x] | 移除或 dev-only **DevPanel**（生產不顯示 ✦） | 正式 UI 乾淨 |
 | CLN-08 | [ ] | 修 **AgentGrid** dispatch（現為 `console.log` 假按鈕） | 真派送或隱藏按鈕 |
 | CLN-09 | [ ] | 刪未使用的 **AgentPanel.tsx** 或重新掛載 | 無死碼 |
 | CLN-10 | [ ] | 統一 RAG host 解析（`RAG_SVC_HOST` vs 硬編 fallback） | 單一 helper |
@@ -120,7 +120,7 @@
 | A-04 | [ ] | 搜尋 query 清理 | S4 ✅ |
 | A-05 | [ ] | 搜尋回覆 ≥3 來源 | S4 ✅ |
 | F-01 | [ ] | 手機合成模式 | S5 ✅ |
-| G-01 | [ ] | SSE 真實進度 | S9 ❌ 404 |
+| G-01 | [x] | SSE 真實進度 | S9 ✅ |
 | H-01 | [ ] | 記憶卡片可點 → Memory Tab | 需 DEP-01 + 手機實測 |
 | I-01 | [ ] | summary 與 RAG 同 doc_count | S6 部分（total=0 待 reindex） |
 | J-01 | [ ] | RAG+路由並行 | harness |
@@ -143,7 +143,7 @@
 
 | ID | 狀態 | 任務 |
 |----|------|------|
-| TST-01 | [ ] | `user-scenario-sim.py` ≥ **8/10** 通過 |
+| TST-01 | [x] | `user-scenario-sim.py` ≥ **8/10** 通過 |
 | TST-02 | [ ] | `human-loop-sim.py` learned ≤ 2/5 |
 | TST-03 | [ ] | 手機實機：Web Push、記憶跳轉、合成模式 |
 
@@ -166,22 +166,22 @@
 
 **執行**：`python scripts/user-scenario-sim.py`  
 **結果檔**：`scripts/user-scenario-results.json`  
-**時間**：2026-06-23T10:10:41Z（雲端 **未部署 harness 第二輪**）
+**時間**：2026-06-23 部署後（commit `d2d76d1`）
 
 | # | 使用者情境 | 期望 | 結果 | 阻礙 | 要完成的清單 ID |
 |---|------------|------|------|------|-----------------|
-| S1 | 開場寒暄 | mem≤1、不亂「已學習」 | **✅** | mem=0, learned=False | — |
-| S2 | 說「記住」 | butler + learned | **✅** | — | DEP-01 後更穩 |
-| S3 | 問「還記得偏好嗎」 | 召回繁體中文 | **❌** | mem=0，butler 未召回 | M-01, DEP-02, A-01 |
-| S4 | 搜尋 Tavily | ≥150字、≥3來源 | **✅** | 1738字、5來源 | — |
-| S5 | 多 Agent 分析 | 合成、多專家 | **✅** | 3 agents、synthesis | — |
-| S6 | 看 Header 在線 | health + 🫀 數 | **✅** | worker=0 離線（預期） | WRK-01 |
-| S7 | 手機控桌機 Shell | echo 有輸出 | **❌** | task 卡 queued | WRK-01, WRK-02 |
-| S8 | 記憶 Tab 瀏覽 | 總數+搜尋 | **✅** | total=0 但搜尋 5 筆（summary 與 query 不一致） | I-01 |
-| S9 | SSE 真實進度 | 非假輪播 | **❌** | `/stream` 404 | DEP-01, G-01 |
-| S10 | 寫程式→Cursor | can_execute + 入列 | **✅** | 執行仍需 cursor_worker | WRK-03 |
+| S1 | 開場寒暄 | mem≤1、不亂「已學習」 | **✅** | — | — |
+| S2 | 說「記住」 | butler + learned | **✅** | — | — |
+| S3 | 問「還記得偏好嗎」 | 召回繁體中文 | **❌** | mem=0 | M-01, DEP-04 |
+| S4 | 搜尋 Tavily | ≥150字、≥3來源 | **✅** | — | — |
+| S5 | 多 Agent 分析 | 合成、多專家 | **✅** | — | — |
+| S6 | 看 Header 在線 | health + 🫀 數 | **✅** | worker=0 | WRK-01 |
+| S7 | 手機控桌機 Shell | echo 有輸出 | **❌** | queued | WRK-01, WRK-02 |
+| S8 | 記憶 Tab 瀏覽 | 總數+搜尋 | **✅** | total=0 / hits=5 | I-01, DEP-04 |
+| S9 | SSE 真實進度 | 非假輪播 | **✅** | — | — |
+| S10 | 寫程式→Cursor | can_execute + 入列 | **✅** | 執行需 cursor_worker | WRK-03 |
 
-**通過率：7/10**（目標 TST-01：≥ 8/10，差 S3 或 S9 任一）
+**通過率：8/10** ✅ 達 TST-01 目標
 
 ### 使用者視角結論
 
@@ -213,8 +213,7 @@ Day 7  TST-01~03  10 情境 ≥8 + 手機實機
 | 日期 | 完成 ID | 備註 |
 |------|---------|------|
 | 2026-06-23 | DOC-* | 文件大整理（00/09/10/17/18、README、deploy-state） |
-| | | |
-| | | |
+| 2026-06-23 | DEP-01~08, SEC-02~04, DKR-*, CLN-01/02/07, G-01, TST-01 | push `d2d76d1`；8/10 情境通過 |
 
 ---
 
