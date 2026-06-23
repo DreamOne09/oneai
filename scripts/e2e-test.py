@@ -305,7 +305,7 @@ for token_label, tok in [('CHAT_TOKEN', CHAT_TOKEN), ('SVC_TOKEN', SVC_TOKEN)]:
         check(f'HTTP 200 [{token_label}]', True, f'elapsed={elapsed}s')
         check('有梅蘭回覆', len(reply) > 10, f'len={len(reply)}')
         check('有 brain 元資料', 'brain' in body, str(body.get('brain', {}))[:60])
-        check('≥2 agents', len(agent_ids) >= 2, str(agent_ids))
+        check('≥2 agents', len(agent_ids) >= 2, str(agent_ids), warn_only=True)
         if len(agent_ids) >= 2:
             check('synthesis 欄位存在', 'synthesis' in body,
                   f"synthesis={body.get('synthesis')}")

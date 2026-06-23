@@ -5,15 +5,15 @@
     "intent": "warmup",
     "msg": "嗨梅蘭，今天狀態如何？",
     "ok": true,
-    "elapsed": 2.4,
+    "elapsed": 2.8,
     "status": 200,
     "agent_ids": [
       "coach"
     ],
     "agent_count": 1,
-    "reply_len": 104,
-    "memories_used": 4,
-    "remembered": true,
+    "reply_len": 89,
+    "memories_used": 2,
+    "remembered": false,
     "memory_preview_ok": true,
     "web_search": null,
     "can_execute": null,
@@ -25,14 +25,14 @@
     "intent": "remember",
     "msg": "記住：我下週三要去曼谷出差，住 Sukhumvit 附近。",
     "ok": true,
-    "elapsed": 3.3,
+    "elapsed": 2.7,
     "status": 200,
     "agent_ids": [
       "butler"
     ],
     "agent_count": 1,
-    "reply_len": 368,
-    "memories_used": 4,
+    "reply_len": 80,
+    "memories_used": 0,
     "remembered": true,
     "memory_preview_ok": true,
     "web_search": null,
@@ -45,15 +45,15 @@
     "intent": "recall",
     "msg": "你還記得我下週的行程嗎？",
     "ok": true,
-    "elapsed": 2.3,
+    "elapsed": 5.4,
     "status": 200,
     "agent_ids": [
       "butler"
     ],
     "agent_count": 1,
-    "reply_len": 185,
-    "memories_used": 4,
-    "remembered": true,
+    "reply_len": 187,
+    "memories_used": 2,
+    "remembered": false,
     "memory_preview_ok": true,
     "web_search": null,
     "can_execute": null,
@@ -65,24 +65,31 @@
     "intent": "search",
     "msg": "搜尋 2026 年曼谷 Sukhumvit 附近新開的 co-working space",
     "ok": true,
-    "elapsed": 12.1,
+    "elapsed": 24.4,
     "status": 200,
     "agent_ids": [
-      "researcher",
-      "butler"
+      "researcher"
     ],
-    "agent_count": 2,
-    "reply_len": 726,
-    "memories_used": 4,
+    "agent_count": 1,
+    "reply_len": 1901,
+    "memories_used": 2,
     "remembered": true,
     "memory_preview_ok": true,
     "web_search": {
-      "query": "搜尋 2026 年曼谷 Sukhumvit 附近新開的 co-working space",
+      "query": "2026 年曼谷 Sukhumvit 附近新開的 co-working space",
       "provider": "tavily",
       "sources": [
         {
-          "title": "Best Coworking Spaces on Sukhumvit 2026: Digital Nomad Guide",
+          "title": "Best Coworking Sukhumvit 2026 - Digital Nomad Guide | Superagent",
           "url": "https://www.superagent.co/en/blog/best-coworking-spaces-on-sukhumvit-2026-digital-nomad-guide"
+        },
+        {
+          "title": "The 7 Best Coworking Bangkok Spaces for Digital Nomads in 2026",
+          "url": "https://deskhop.work/article_page/the-7-best-coworking-bangkok-spaces-for-digital-nomads-in-2026"
+        },
+        {
+          "title": "Best Coworking Spaces in Bangkok: 2026 Digital Nomad Guide",
+          "url": "https://www.roampads.com/blog/bangkok-best-coworking-spaces-digital-nomad"
         },
         {
           "title": "Best Coworking Spaces Bangkok 2026: Top 10 Picks, Prices & Neighborhood Tips - Asia Lifestyle Magazine",
@@ -91,15 +98,14 @@
         {
           "title": "Co-Working Space in Bangkok True Digital Park",
           "url": "https://www.truedigitalpark.com/en/workplace/co-working-space"
-        },
-        {
-          "title": "Best Coworking Spaces in Bangkok: 2026 Digital Nomad Guide",
-          "url": "https://www.roampads.com/blog/bangkok-best-coworking-spaces-digital-nomad"
-        },
-        {
-          "title": "Coworking Space In Bangkok | Find Your Ideal Coworking Space",
-          "url": "https://flyspaces.com/bangkok/coworking-space"
         }
+      ],
+      "snippets": [
+        "[Best Coworking Sukhumvit 2026 - Digital Nomad Guide | Superagent](https://www.superagent.co/en/blog/best-coworking-spaces-on-sukhumvit-2026-digital-nomad-guide)\n# Best Coworking Spaces on Sukhumvit 2026: Digital Nomad Guide. Discover top-rated coworking spaces on Sukhumvit with high-speed internet and vibrant communities. Find the best coworking sukhumvit 2026 options for digital nomads. Here is your no-fluff guide to the best coworking spaces on Sukhumvit this year. ![[For Rent] CONDO I Teal Sathon-Taksin I 1 Bed I 1 Bath I 19,000THB/mo](/_next/image? ![[For Rent] CONDO I Altitude Samyan-Silom I 2 Beds I 1 Bath I 33,000 THB/mo](/_next/image? [For Rent] CONDO I Altitude Samyan-Silom I 2 Beds I 1 Bath I 33,000 THB/mo. ![[For Rent] CONDO I The Key Sathorn - Charoenrat I 2 Beds I 2 Baths I 32,000THB/mo](/_next/image? ![[For Rent] CONDO I Ideo Q Sukhumvit 36 I 1 Bed I 1 Bath I 45,000THB/mo](/_next/image? [For Rent] CONDO I Ideo Q Sukhumvit 36 I 1 Bed I 1 Bath I 45,000THB/mo. ![[For Rent] CONDO I Kave TU I 1 Bed I 1 Baths I 12,000 THB/mo](/_next/image?",
+        "[The 7 Best Coworking Bangkok Spaces for Digital Nomads in 2026](https://deskhop.work/article_page/the-7-best-coworking-bangkok-spaces-for-digital-nomads-in-2026)\n6. True Digital Park Co‑Working Space (Punnawithi / Phra Khanong) ... Column 1: \"My Needs\" (e.g., 24/7 access, quiet zone, close to BTS Sukhumvit",
+        "[Best Coworking Spaces in Bangkok: 2026 Digital Nomad Guide](https://www.roampads.com/blog/bangkok-best-coworking-spaces-digital-nomad)\n# Best Coworking Spaces in Bangkok: 2026 Digital Nomad Guide. Bangkok’s energy makes it a global hub for digital nomads, and its coworking scene is just as dynamic. This guide cuts through the noise to help you find the right workspace for your needs, whether you're grinding on US hours and need true 24/7 access, seeking a professional setting for client calls, or hoping to connect with the local nomad community. ## Top Coworking Spaces in Bangkok Open 24 Hours. It’s a well-known tip among nomads that \"24/7 access\" doesn't always mean the air conditioning stays on. * **The Hive** **(Thonglor & Phra Khanong):** A consistent favorite, The Hive offers genuine 24/7 access for monthly members with the **air conditioning running all night**. At around **200 THB for a day pass**, it’s one of the most affordable 24/7 options for focused, late-night sessions. January 26, 2026ReadWhere to Stay in Bangkok: Best Neighborhoods Guide 2026 – Digital Nomad Guide.",
+        "[Best Coworking Spaces Bangkok 2026: Top 10 Picks, Prices & Neighborhood Tips - Asia Lifestyle Magazine](https://www.asialifestylemagazine.com/best-coworking-spaces-bangkok-2026)\n# Best Coworking Spaces Bangkok 2026: Top 10 Picks, Prices & Neighborhood Tips. Looking for the best coworking spaces Bangkok has to offer in 2026? Whether you’re a digital nomad testing the waters of Southeast Asia, a startup founder scaling your remote team, or a corporate professional hunting for a productive workspace away from home, Bangkok’s coworking scene delivers on every front. Bangkok’s coworking market continues to surge, driven by steady demand from both local entrepreneurs and the growing wave of remote workers choosing Thailand as a base (source). Today’s Bangkok spaces compete not just on desks and Wi-Fi but on ecosystem value: think pitch nights, wellness workshops, investor meetups, and seamless integration with the city’s efficient BTS and MRT transit lines (read more). Understanding how the best coworking spaces Bali, best coworking spaces Kuala Lumpur, and best coworking spaces Ho Chi Minh City stack up helps you choose the right base or plan multi-city sprints.",
+        "[Co-Working Space in Bangkok True Digital Park](https://www.truedigitalpark.com/en/workplace/co-working-space)\nCo-Working Space on Sukhumvit Road close to Punnawithi BTS Station. True Digital Park offers digital working space in the prime, Sukhumvit area of Bangkok."
       ],
       "result_count": 5
     },
@@ -112,20 +118,20 @@
     "intent": "multi_agent",
     "msg": "分析：我應該先優化手機 PWA 體驗，還是先讓桌機 worker 穩定？給我 3 個行動建議。",
     "ok": true,
-    "elapsed": 25.2,
+    "elapsed": 27.0,
     "status": 200,
     "agent_ids": [
-      "engineer",
       "pm",
-      "analyst"
+      "analyst",
+      "engineer"
     ],
     "agent_count": 3,
-    "reply_len": 1418,
-    "memories_used": 4,
+    "reply_len": 1662,
+    "memories_used": 1,
     "remembered": true,
     "memory_preview_ok": true,
     "web_search": null,
-    "can_execute": true,
+    "can_execute": null,
     "model": "google/gemini-2.5-flash"
   }
 ]

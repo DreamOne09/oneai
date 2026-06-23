@@ -1,0 +1,94 @@
+{
+  "base": "https://oneai-approval.zeabur.app",
+  "ts": "2026-06-23T13:18:29Z",
+  "marker": "OneAI-EvolveSkill-2026",
+  "passed": 6,
+  "partial": 0,
+  "total": 6,
+  "boundary_note": "RAG memory evolve OK; filesystem skill install NOT in scope",
+  "scenarios": [
+    {
+      "solved": true,
+      "user_sees": "管家已寫入 skill",
+      "blocker": null,
+      "metrics": {
+        "agents": [
+          "butler"
+        ],
+        "learned": true,
+        "elapsed": 3.03
+      },
+      "id": 1,
+      "title": "裝 skill（記住 SOP）",
+      "goal": "說記住 → butler 寫入"
+    },
+    {
+      "solved": true,
+      "user_sees": "mem=1 bullets=False",
+      "blocker": null,
+      "metrics": {
+        "mem": 1,
+        "reply_len": 141,
+        "has_bullets": false
+      },
+      "id": 2,
+      "title": "召回 skill",
+      "goal": "依 skill 格式回覆 + mem≥1"
+    },
+    {
+      "solved": true,
+      "user_sees": "已進化寫回",
+      "blocker": null,
+      "metrics": {
+        "learned": true,
+        "agents": [
+          "butler"
+        ]
+      },
+      "id": 3,
+      "title": "進化 skill",
+      "goal": "說進化 → 寫入新版本"
+    },
+    {
+      "solved": true,
+      "partial": false,
+      "user_sees": "五點 mem=4",
+      "blocker": null,
+      "metrics": {
+        "mem": 4,
+        "has_five": true,
+        "has_three_only": false
+      },
+      "id": 4,
+      "title": "進化後召回",
+      "goal": "答出五點摘要"
+    },
+    {
+      "solved": true,
+      "user_sees": "engineer=True code=True can_execute=True",
+      "blocker": null,
+      "metrics": {
+        "agents": [
+          "engineer"
+        ],
+        "has_code": true,
+        "can_execute": true
+      },
+      "id": 5,
+      "title": "工程師 auto-sop",
+      "goal": "engineer + code → skill_saved 路徑"
+    },
+    {
+      "solved": true,
+      "user_sees": "RAG 命中 8 筆 skill/sop",
+      "blocker": null,
+      "metrics": {
+        "total": 8,
+        "skill_hits": 8
+      },
+      "id": 6,
+      "title": "RAG 可查 sop",
+      "goal": "/brain/memories 命中 OneAI-EvolveSkill-2026"
+    }
+  ]
+}

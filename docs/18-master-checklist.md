@@ -12,7 +12,7 @@
 | 類別 | 狀態 |
 |------|------|
 | **GitHub 雲端** | approval + PWA 自動部署 ✅；程式 commit 至 `454765a` |
-| **AI 代跑驗證** | 10 情境 **10/10** ✅；e2e **20/20**；brain-intel **22/22** |
+| **AI 代跑驗證** | 10 情境 **10/10**；e2e **34 pass**；進化 **6/6**；human-loop **5/5** |
 | **你的本機** | ⚠️ **尚未執行** worker 排程 / cursor_worker / Zeabur CLI / 手機實測 |
 | **卡關項** | 無（S3 已修：recall score 門檻 0.2）；**DEP-04 仍建議**（rag Volume 持久化） |
 
@@ -167,6 +167,7 @@ node scripts\brain-intel.test.js
 python scripts\brain-smoke.py
 python scripts\e2e-test.py              # 契約煙霧（預設不 hammer rate limit）
 python scripts\user-scenario-sim.py     # 10 情境旅程
+python scripts\agent-evolve-sim.py    # Skill 裝/召回/進化
 python scripts\human-loop-sim.py
 ```
 
@@ -184,7 +185,7 @@ python scripts\human-loop-sim.py
 | ID | 狀態 | 說明 |
 |----|------|------|
 | DEP-01~03 | [x] | push + approval/PWA 自動 build |
-| DEP-05~08 | [x] | smoke / e2e / unit test（AI 環境） |
+| DEP-05~08 | [x] | smoke / e2e（34 pass）/ unit / scenario sim |
 | DEP-04 | [ ] | **需你在 §2 步驟 3 做** |
 
 ### Phase 1 清理
@@ -262,7 +263,7 @@ python scripts\human-loop-sim.py
 | 2026-06-23 | AI | DEP-01~08, CLN-*, ARC-*, G-01, I-01 | push + 雲端 deploy |
 | 2026-06-23 | AI | WRK-04/05, memory recall 程式 | agents-config、harness |
 | 2026-06-23 | AI | TST-01（10/10） | recall score fix `454765a` + 代跑 worker |
-| 2026-06-23 | AI | ENV-01 | 本機 token 分離已驗 |
+| 2026-06-23 | AI | agent-evolve-sim | 6/6 skill 裝/進化/RAG |
 | | **你** | LOC-00 | |
 | | **你** | WRK-01 | |
 | | **你** | WRK-02 | |
