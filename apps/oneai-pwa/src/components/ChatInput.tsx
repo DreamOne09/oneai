@@ -1,29 +1,21 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { useOneAI } from '../state/store'
-import { orchestrate, type AgentContrib, type History, type OrchestrateResult } from '../lib/librechat'
+import { orchestrateStream, type AgentContrib, type History, type OrchestrateResult } from '../lib/librechat'
 
 const APPROVAL_BASE = (import.meta.env.VITE_APPROVAL_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 const APPROVAL_TOKEN = import.meta.env.VITE_APPROVAL_TOKEN as string | undefined
 
-const PENDING_STEPS = [
-  '🔍 分析意圖…',
-  '🧠 調取長期記憶…',
-  '🌐 搜尋最新資料…',
-  '🤖 多 Agent 協作…',
-  '✨ 梅蘭整合…',
-]
-
-const PENDING_BY_INTENT: [RegExp, string[]][] = [
-  [/搜尋|搜索|search|查一下/i, ['🔍 分析意圖…', '🌐 搜尋最新資料…', '🧠 對照記憶…', '✨ 梅蘭整合…']],
-  [/記得|記憶|記住|腦中/i, ['🔍 分析意圖…', '🫀 管家調閱記憶…', '✨ 整理回覆…']],
-  [/分析|策略|程式|code|部署/i, ['🔍 分析意圖…', '🤖 專家協作…', '✨ 梅蘭整合…']],
-]
-
-function pendingStepsFor(msg: string) {
-  for (const [re, steps] of PENDING_BY_INTENT) {
-    if (re.test(msg)) return steps
-  }
-  return PENDING_STEPS
+const PHASE_FALLBACK: Record<string, string> = {
+  rag_start: '🧠 調取長期記憶…',
+  rag_done: '🧠 記憶就緒',
+  route_done: '🔍 路由決策…',
+  search_start: '🌐 搜尋最新資料…',
+  search_done: '🌐 搜尋完成',
+  agent_done: '🤖 專家回覆…',
+  synth_start: '✨ 梅蘭整合…',
+  synth_done: '✨ 整合完成',
+  memory_saved: '📝 寫入記憶…',
+  skill_saved: '💾 儲存 Skill…',
 }
 
 const QUICK_CHIPS = [
@@ -181,19 +173,15 @@ export default function ChatInput() {
     // 用戶訊息氣泡
     pushActivity('user', msg, { agentId: 'user', agentIcon: '👤', agentDisplay: '你' })
     setStatus('thinking')
-    let pendingIdx = 0
-    const steps = pendingStepsFor(msg)
-    setPending(steps[0])
-    const pendingTimer = window.setInterval(() => {
-      pendingIdx = (pendingIdx + 1) % steps.length
-      setPending(steps[pendingIdx])
-    }, 1800)
+    setPending('🔍 分析意圖…')
 
     const history = historyRef.current.slice(-12)
 
     try {
-      const result = await orchestrate(msg, history)
-      clearInterval(pendingTimer)
+      const result = await orchestrateStream(msg, history, (ev) => {
+        const label = ev.label ?? PHASE_FALLBACK[ev.phase] ?? ev.phase
+        if (label) setPending(label)
+      })
       historyRef.current = [
         ...history,
         { role: 'user', content: msg },
@@ -204,11 +192,12 @@ export default function ChatInput() {
       setStatus('speaking')
 
       const memCount = result.brain?.memories_used ?? result.memories_used ?? 0
+      const memQuery = result.brain?.memory_preview?.[0]?.slice(0, 80) ?? msg.slice(0, 80)
       if (memCount > 0) {
         const preview = result.brain?.memory_preview?.[0]
         pushActivity('memory', preview
           ? `🧠 調取 ${memCount} 條記憶：${preview.slice(0, 60)}…`
-          : `🧠 調取 ${memCount} 條長期記憶`, { memoriesUsed: memCount })
+          : `🧠 調取 ${memCount} 條長期記憶`, { memoriesUsed: memCount, memoryQuery: memQuery })
       }
 
       if (result.web_search) {
@@ -246,7 +235,6 @@ export default function ChatInput() {
 
       setLastResult(result)
     } catch (err) {
-      clearInterval(pendingTimer)
       setPending(null)
       pushActivity('warning', `錯誤：${(err as Error).message}`, {
         agentId: 'assistant',

@@ -19,7 +19,7 @@ if (-not $isAdmin) {
     Write-Host "[OneAI] 需要系統管理員權限，正在提升…" -ForegroundColor Yellow
     Start-Process powershell -Verb RunAs -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass",
-        "-File", "`"$Script`""
+        "-File", $Script
     )
     exit 0
 }

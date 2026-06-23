@@ -1,5 +1,8 @@
 # 03 - 雲端大腦：LibreChat 部署於 Zeabur
 
+> ⚠️ **狀態（2026-06-23）**：LibreChat **目前未在 Zeabur 運行**（oneai-chat.zeabur.app → 404）。  
+> 現役主路徑為 **PWA + approval-svc**。本文保留作**恢復 LibreChat 時的參考**；Zeabur 通用雷區見 [17](17-lessons-learned-and-war-stories.md)。
+
 > 決策依據：[docs/14](14-stack-licensing-research.md)。雲端大腦由 Odysseus 改為 **LibreChat（MIT）**——成熟、可白牌、自帶 Agents/MCP/RAG/記憶/多用戶認證。
 
 ## 3.1 前提與限制

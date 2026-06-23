@@ -1,5 +1,8 @@
 # 05 - 橋樑：MCP 與 ruflo Federation
 
+> ⚠️ **狀態（2026-06-23）**：**ruflo federation 已棄用**。雲↔本機改 **反向輪詢 worker**（[12 §12.9](12-antigravity-hands.md)）。  
+> `bridge/mcp-core` 仍用於 LibreChat/Cursor MCP；federation 章節為歷史參考。
+
 > 更新：雲端大腦改 **LibreChat（MIT）**，我們的能力透過 `bridge/mcp-core` 以 MCP 掛進 LibreChat（見 [docs/14](14-stack-licensing-research.md)）。federation/mTLS→Tailscale 仍待拍板（[docs/13](13-design-review-simplification.md)）。
 
 ## 5.1 目標

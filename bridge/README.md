@@ -1,6 +1,7 @@
-# bridge — 加密橋樑 (The Bridge)
+# bridge — MCP 與本機橋樑
 
-把「我們的差異化能力」包成 MCP 工具，掛進雲端大腦 **LibreChat**（或任何支援 MCP 的 host），外加雲端↔本機的零信任通道。
+> **2026-06-23**：雲↔本機任務走 **approval-svc `/tasks` + worker.py**（非 federation）。  
+> `mcp-core` 供 LibreChat/Cursor MCP 使用。文件 → [docs/12](../docs/12-antigravity-hands.md)、[docs/05](../docs/05-bridge-mcp-federation.md)。
 
 ## 兩個部分
 

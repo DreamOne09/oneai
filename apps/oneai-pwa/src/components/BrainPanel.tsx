@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useOneAI } from '../state/store'
 
 const APPROVAL_BASE = (import.meta.env.VITE_APPROVAL_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 const CHAT_TOKEN = (import.meta.env.VITE_CHAT_TOKEN as string | undefined) ?? (import.meta.env.VITE_APPROVAL_TOKEN as string | undefined) ?? ''
@@ -50,9 +51,10 @@ async function saveMemory(text: string): Promise<void> {
 interface BrainPanelProps {
   onClose: () => void
   inline?: boolean   // true = 直接嵌入頁面（Memory Tab），false = overlay 彈窗
+  highlightQuery?: string | null
 }
 
-export function BrainPanel({ onClose, inline = false }: BrainPanelProps) {
+export function BrainPanel({ onClose, inline = false, highlightQuery = null }: BrainPanelProps) {
   const [query, setQuery] = useState('孟一')
   const [memories, setMemories] = useState<Memory[]>([])
   const [summary, setSummary] = useState<BrainSummary | null>(null)
@@ -61,6 +63,14 @@ export function BrainPanel({ onClose, inline = false }: BrainPanelProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const clearMemoryHighlight = useOneAI((s) => s.clearMemoryHighlight)
+
+  useEffect(() => {
+    if (!highlightQuery) return
+    const q = highlightQuery.slice(0, 80).trim()
+    if (q) setQuery(q)
+  }, [highlightQuery])
 
   const load = useCallback(async (q: string) => {
     setLoading(true)
@@ -77,6 +87,22 @@ export function BrainPanel({ onClose, inline = false }: BrainPanelProps) {
   }, [])
 
   useEffect(() => { load(query) }, [load, query])
+
+  useEffect(() => {
+    if (!highlightQuery || !memories.length) return
+    const needle = highlightQuery.slice(0, 40).toLowerCase()
+    const hit = memories.find(m => m.text.toLowerCase().includes(needle))
+    if (hit) {
+      setHighlightId(hit.id)
+      requestAnimationFrame(() => {
+        document.getElementById(`mem-${hit.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+      window.setTimeout(() => {
+        setHighlightId(null)
+        clearMemoryHighlight()
+      }, 4000)
+    }
+  }, [highlightQuery, memories, clearMemoryHighlight])
 
   const handleSave = async () => {
     if (!newMemory.trim()) return
@@ -143,7 +169,11 @@ export function BrainPanel({ onClose, inline = false }: BrainPanelProps) {
             </div>
           )}
           {memories.map(m => (
-            <div className="brain-memory-card" key={m.id}>
+            <div
+              className={`brain-memory-card${highlightId === m.id ? ' brain-memory-card--highlight' : ''}`}
+              key={m.id}
+              id={`mem-${m.id}`}
+            >
               <div className="brain-memory-text">{m.text}</div>
               <div className="brain-memory-meta">
                 <span>相關度 {(m.score * 100).toFixed(0)}%</span>

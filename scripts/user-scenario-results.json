@@ -1,0 +1,178 @@
+{
+  "base": "https://oneai-approval.zeabur.app",
+  "ts": "2026-06-23T10:10:41Z",
+  "passed": 7,
+  "total": 10,
+  "scenarios": [
+    {
+      "solved": true,
+      "user_sees": "梅蘭回「สวัสดี李孟一。\n\n請問接下來需要協助處理 Identity, DreamO…」",
+      "blocker": null,
+      "checklist_ids": [],
+      "metrics": {
+        "mem": 0,
+        "learned": false,
+        "elapsed": 1.23
+      },
+      "id": 1,
+      "title": "開場寒暄",
+      "user_goal": "像跟助理打招呼，不要一堆記憶和「已學習」"
+    },
+    {
+      "solved": true,
+      "user_sees": "管家確認已記住",
+      "blocker": null,
+      "checklist_ids": [
+        "A-02",
+        "A-03",
+        "DEP-01"
+      ],
+      "metrics": {
+        "agents": [
+          "butler"
+        ],
+        "learned": true
+      },
+      "id": 2,
+      "title": "明確記住",
+      "user_goal": "說「記住」後，管家確認並寫入"
+    },
+    {
+      "solved": false,
+      "user_sees": "回覆未命中偏好 agents=['butler'] mem=0",
+      "blocker": "RAG 無相關記憶或 butler 未召回",
+      "checklist_ids": [
+        "A-01",
+        "M-01",
+        "DEP-02"
+      ],
+      "metrics": {
+        "agents": [
+          "butler"
+        ],
+        "mem": 0,
+        "reply_len": 106
+      },
+      "id": 3,
+      "title": "調出記憶",
+      "user_goal": "問偏好，能從記憶庫召回"
+    },
+    {
+      "solved": true,
+      "user_sees": "搜尋回覆 1738 字、5 來源",
+      "blocker": null,
+      "checklist_ids": [
+        "A-04",
+        "A-05",
+        "ENV-01"
+      ],
+      "metrics": {
+        "reply_len": 1738,
+        "sources": 5,
+        "provider": "tavily"
+      },
+      "id": 4,
+      "title": "網路搜尋",
+      "user_goal": "搜尋後有來源、回覆夠長"
+    },
+    {
+      "solved": true,
+      "user_sees": "3 位專家、合成=True、1713字",
+      "blocker": null,
+      "checklist_ids": [
+        "F-01",
+        "DEP-01"
+      ],
+      "metrics": {
+        "agent_count": 3,
+        "synthesis": true,
+        "reply_len": 1713
+      },
+      "id": 5,
+      "title": "多專家分析",
+      "user_goal": "複雜問題多位 Agent + 梅蘭合成"
+    },
+    {
+      "solved": true,
+      "user_sees": "Header 🫀 0 條；worker 離線",
+      "blocker": null,
+      "checklist_ids": [
+        "CLN-01",
+        "WRK-01"
+      ],
+      "metrics": {
+        "health": true,
+        "brain_ok": true,
+        "workers": 0
+      },
+      "id": 6,
+      "title": "看系統在線",
+      "user_goal": "Header 綠點、🫀 記憶數、worker 狀態"
+    },
+    {
+      "solved": false,
+      "user_sees": "任務卡在 queued（worker 未跑）",
+      "blocker": "本機 worker.py 未啟動或 token 不符",
+      "checklist_ids": [
+        "WRK-01",
+        "WRK-02"
+      ],
+      "metrics": {
+        "task_id": "dc38b444-0fb7-47d8-abf1-a016dad46f15",
+        "status": "queued"
+      },
+      "id": 7,
+      "title": "手機控桌機 Shell",
+      "user_goal": "AgyPanel 派 echo 命令有回應"
+    },
+    {
+      "solved": true,
+      "user_sees": "記憶庫 0 條；搜尋命中 5 筆",
+      "blocker": null,
+      "checklist_ids": [
+        "I-01",
+        "DEP-02",
+        "H-01"
+      ],
+      "metrics": {
+        "total": 0,
+        "query_hits": 5
+      },
+      "id": 8,
+      "title": "記憶 Tab",
+      "user_goal": "看記憶庫總數、能搜尋"
+    },
+    {
+      "solved": false,
+      "user_sees": "仍用假輪播或 404",
+      "blocker": "SSE endpoint 404 (harness v2 not deployed)",
+      "checklist_ids": [
+        "G-01",
+        "DEP-01"
+      ],
+      "metrics": {
+        "elapsed": 0.24
+      },
+      "id": 9,
+      "title": "真實思考進度",
+      "user_goal": "SSE 階段推送（非假輪播）"
+    },
+    {
+      "solved": true,
+      "user_sees": "可派送 Cursor 任務 d3231458",
+      "blocker": null,
+      "checklist_ids": [
+        "WRK-03",
+        "DEP-01"
+      ],
+      "metrics": {
+        "can_execute": true,
+        "code_len": 45,
+        "task_id": "d3231458-5825-4b4d-9109-81623c4bf66f"
+      },
+      "id": 10,
+      "title": "寫程式跑 Cursor",
+      "user_goal": "工程師給 code + 可派送 Cursor"
+    }
+  ]
+}

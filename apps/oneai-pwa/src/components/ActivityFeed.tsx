@@ -30,10 +30,16 @@ function agentColor(id?: string) {
 function MessageBubble({ item }: { item: ActivityItem }) {
   const [expanded, setExpanded] = useState(false)
   const [showExperts, setShowExperts] = useState(false)
+  const openMemoryTab = useOneAI((s) => s.openMemoryTab)
   const isUser = item.kind === 'user' || item.agentId === 'user'
+  const isMemoryCard = item.kind === 'memory' && !!item.memoryQuery
   const isLong = item.text.length > COLLAPSE_THRESHOLD
   const displayText = isLong && !expanded ? item.text.slice(0, COLLAPSE_THRESHOLD) + '…' : item.text
   const color = agentColor(item.agentId)
+
+  const openMemory = () => {
+    if (item.memoryQuery) openMemoryTab(item.memoryQuery)
+  }
 
   return (
     <motion.div
@@ -57,7 +63,9 @@ function MessageBubble({ item }: { item: ActivityItem }) {
           <div className="msg-meta">
             <span className="msg-name" style={{ color }}>{item.agentDisplay ?? 'OneAI'}</span>
             {item.memoriesUsed ? (
-              <span className="msg-memory">🧠 記憶 ×{item.memoriesUsed}</span>
+              <button type="button" className="msg-memory msg-memory--link" onClick={openMemory} title="查看記憶庫">
+                🧠 記憶 ×{item.memoriesUsed}
+              </button>
             ) : null}
             {item.brainLearned ? (
               <span className="msg-learned">📝 已學習</span>
@@ -70,8 +78,13 @@ function MessageBubble({ item }: { item: ActivityItem }) {
 
         {/* 訊息泡泡 */}
         <div
-          className={`msg-bubble ${isUser ? 'msg-bubble--user' : `msg-bubble--agent kind-${item.kind}`}`}
+          className={`msg-bubble ${isUser ? 'msg-bubble--user' : `msg-bubble--agent kind-${item.kind}`}${isMemoryCard ? ' msg-bubble--memory-link' : ''}`}
           style={!isUser ? { borderLeftColor: `${color}66` } : undefined}
+          onClick={isMemoryCard ? openMemory : undefined}
+          onKeyDown={isMemoryCard ? (e) => e.key === 'Enter' && openMemory() : undefined}
+          role={isMemoryCard ? 'button' : undefined}
+          tabIndex={isMemoryCard ? 0 : undefined}
+          title={isMemoryCard ? '點擊查看記憶庫' : undefined}
         >
           <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{displayText}</span>
           {isLong && (

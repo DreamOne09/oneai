@@ -1,8 +1,7 @@
-# 01 - OneAI 系統架構（v3，2026-06-21）
+# 01 - OneAI 系統架構（v3.1，2026-06-23）
 
-> 本文反映**當前實際部署狀態**（v3 = Multi-Agent + Soul/RAG 記憶 + Cursor 執行）。
-> 部署細節見 [`infra/zeabur/.deploy-state.md`](../infra/zeabur/.deploy-state.md)。
-> 多組織 Agent 授權設計見 [`ADR-001`](ADR-001-multi-agent-architecture.md)。
+> **現況**：手機 PWA + approval-svc 為**主路徑**；LibreChat 2026-06 起 Zeabur 已下線（可選恢復）。  
+> 部署 SSOT → [`infra/zeabur/.deploy-state.md`](../infra/zeabur/.deploy-state.md) · 踩坑 → [17](17-lessons-learned-and-war-stories.md)
 
 ---
 
@@ -32,8 +31,8 @@ flowchart TB
     subgraph cloud ["雲端大腦 - Zeabur (DreamBangkok)"]
         appr["approval-svc (Node.js 核心)\n/chat/orchestrate 多 Agent\n/chat 單次問答\n/tasks 佇列\n/agents/heartbeat + /status\n/system/status"]
         rag["rag-svc (FastAPI)\nChromaDB 向量索引\nbge-small-zh 嵌入\n/query + /remember"]
-        librechat["LibreChat\n電腦工作台\nmcp-core 5 工具"]
-        mongo["MongoDB (marketplace)\nLibreChat 對話+帳號"]
+        librechat["LibreChat（選配，目前下線）\n桌面工作台 + mcp-core"]
+        mongo["MongoDB（選配）\nLibreChat 對話"]
         backup["oneai-backup\n每日 03:00 UTC mongodump"]
     end
 
@@ -67,9 +66,10 @@ flowchart TB
     librechat --> rag
 
     vault -- "reindex" --> rag
-    rag --> mongo
     mongo --> backup
 ```
+
+> **注意**：LibreChat / Mongo 為虛線選配；現役主路徑為 PWA → approval-svc → rag-svc。
 
 ---
 
@@ -155,14 +155,15 @@ L2 工作記憶（對話 session）
       存在 PWA 前端 sessionStorage
 
 L3 長期記憶（跨 session 累積）
-   └─ rag-svc ChromaDB：每次對話後自動存入
-      下次問相關問題時自動召回注入
-      來源 1：Obsidian vault .md 文件
-      來源 2：每次 Q&A 自動記憶
+   └─ rag-svc ChromaDB：選擇性寫入 + 智慧注入
+      · score≥0.6 才注入；寒暄 skip（brain-intel）
+      · 顯式「記住」→ kind=preference；一般對話 → kind=memory
+      · 寫入前去重（相似度≥0.95）
+      來源 1：Obsidian vault .md
+      來源 2：orchestrate 選擇性 /remember（Markdown + 出處）
 ```
 
-> 目前每次對話存入格式：
-> `[對話記憶 2026-06-21] 問：... 答：...`（前 600 字）
+> 詳見 `services/approval/src/brain-intel.js`、`orchestrate-harness.js`。
 
 ---
 
@@ -173,8 +174,8 @@ L3 長期記憶（跨 session 累積）
 | **OneAI PWA** | 手機 / 瀏覽器 | 主對話介面、Möbius Orb、Agent 面板、「在 Cursor 執行」按鈕、記憶使用提示 |
 | **approval-svc** | Zeabur | **核心**：Orchestrate + 記憶注入 + 任務佇列 + Agent 心跳 + 審核 |
 | **rag-svc** | Zeabur | Soul L3：向量查詢 + 記憶寫入（ChromaDB + bge-small-zh） |
-| **LibreChat** | Zeabur | 電腦工作台；mcp-core 讓 AI 存取 OneAI 工具 |
-| **MongoDB** | Zeabur | LibreChat 對話歷史 + 帳號 |
+| **LibreChat** | Zeabur（選配） | 桌面工作台；**2026-06 起未部署** |
+| **MongoDB** | Zeabur（選配） | LibreChat 用；隨 LC 下線 |
 | **oneai-backup** | Zeabur | 每日 03:00 UTC mongodump，保留 7 天 |
 | **Antigravity worker.py** | 本機 | 反向輪詢任務佇列，執行 shell/cursor_agent，30s 心跳 |
 | **cursor_worker.py** | 本機 | 認領 `cursor_agent` 任務，呼叫 Cursor SDK → IDE 執行 |
@@ -214,13 +215,13 @@ L3 長期記憶（跨 session 累積）
 
 | 項目 | 狀態 | 說明 |
 |---|---|---|
-| Backup Volume 掛載 | **待手動** | Zeabur Dashboard → oneai-backup → Storage → `/data/backups` |
-| Worker 開機自動啟動 | **待手動** | 管理員 PS 執行 `install-worker-task.ps1` |
-| cursor_worker.py 啟動 | 手動 | `python hands/cursor-agent/cursor_worker.py` |
-| Researcher Agent（上網） | 延後 | 需 Tavily API key |
-| dreamone.li Gateway | 延後 | 目前用 `.zeabur.app` 免費網域 |
-| GitHub Offsite Backup | 選填 | 設 `GITHUB_BACKUP_TOKEN` 到 backup 服務 |
-| Obsidian Mobile 同步 | 選填 | iCloud 或 Obsidian Git plugin |
+| 第二輪 brain/harness/SSE | **本地待 push** | orchestrate-harness、SSE 進度、kind 檢索 |
+| Backup Volume 掛載 | **待手動** | `/data/backups` |
+| Worker 開機自啟 | **待手動** | `INSTALL-WORKER.bat` |
+| LibreChat 恢復 vs 退役 | **待決策** | chat.zeabur.app 404 |
+| rag-svc redeploy | **待手動** | kind  metadata 需新映像 |
+| Zeabur 清理 video-wizard | **待做** | 4 個 SUSPENDED 服務 |
+| dreamone.li Gateway | 延後 | 先用 `.zeabur.app` |
 
 ---
 

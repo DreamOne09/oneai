@@ -1,4 +1,6 @@
-# 16 — 步驟 3:上雲部署計畫(OneAI v1 雲端大腦)
+# 16 — 步驟 3：上雲部署計畫（OneAI v1 雲端大腦）
+
+> ⚠️ **狀態（2026-06-23）**：部分過時。請優先讀 [infra/zeabur/README.md](../infra/zeabur/README.md)、[17-lessons-learned](17-lessons-learned-and-war-stories.md)、[.deploy-state.md](../infra/zeabur/.deploy-state.md)。
 
 > 前置:步驟 1（大腦品質:中文嵌入 + persona）與步驟 2（安全:政策/雜湊/沙箱）已完成。
 > LLM 閘道已切換為 **OpenRouter**（見 [03](03-cloud-librechat-zeabur.md)、`config/oneai.models.json`）。
@@ -21,7 +23,7 @@
 | --- | --- | --- | --- | --- |
 | ntfy | `binwiederhier/ntfy` + `infra/zeabur/ntfy/server.yml` | HTTPS | — | `/var/lib/ntfy`,`/var/cache/ntfy` |
 | approval-svc | `services/approval`（Dockerfile） | HTTPS | — | `/app/data` |
-| **rag-svc**（新） | `brain/`（`brain/rag/Dockerfile`） | 內網 | **OpenRouter 嵌入**（雲端免 torch） | `/app/.chroma` |
+| **rag-svc**（新） | `brain/`（`brain/Dockerfile`） | 內網 | **OpenRouter 嵌入**（雲端免 torch） | `/app/.chroma` |
 | LibreChat + MongoDB | 官方映像（pin 版本）+ `infra/zeabur/librechat/librechat.yaml` | Web UI / 內網 | OpenRouter（一把 key） | Mongo `/data/db` |
 | oneai-pwa | `apps/oneai-pwa`（Dockerfile） | HTTPS | — | — |
 
@@ -31,7 +33,7 @@
 
 1. **ntfy**：先產 VAPID（`npm run gen-vapid -w services/approval`），填入 `server.yml`，部署。
 2. **approval-svc**（Tier 0 護欄）：build context = `services/approval`；掛持久卷 `/app/data`；設 `NTFY_*` `VAPID_*` `APPROVAL_BASE_URL` `ALLOWED_ORIGIN` **`APPROVAL_TOKEN`（強隨機，必填）**。
-3. **rag-svc**（新）：build context = `brain/`，Dockerfile = `brain/rag/Dockerfile`；掛持久卷 `/app/.chroma`；設 OpenRouter 嵌入 env（見 §4）。啟動會自動建索引再起服務。
+3. **rag-svc**（新）：build context = `brain/`，Dockerfile = `brain/Dockerfile`；掛持久卷 `/app/.chroma`；設 OpenRouter 嵌入 env（見 §4）。啟動會自動建索引再起服務。
 4. **MongoDB** → **LibreChat**：官方映像；掛 `librechat.yaml`（CONFIG_PATH=/app/librechat.yaml）；設 OpenRouter key、認證機密、`RAG_API_URL`（=rag-svc 內網位址）、`APPROVAL_BASE_URL`/`APPROVAL_TOKEN`。
 5. **oneai-pwa**：build context = `apps/oneai-pwa`；build args 填 `VITE_*`（ntfy/approval/librechat 網址、VAPID 公鑰）。
 

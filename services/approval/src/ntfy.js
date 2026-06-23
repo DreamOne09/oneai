@@ -1,6 +1,7 @@
 // 發布通知到自架 ntfy。審核訊息帶 Approve/Reject 的 http action 按鈕,
 // 同時把 Approval 物件以 JSON 放在 message,供 PWA SSE 解析成審核卡片。
 
+const NTFY_ENABLED = process.env.NTFY_ENABLED === '1'
 const BASE = process.env.NTFY_BASE_URL
 const TOKEN = process.env.NTFY_TOKEN
 const TOPIC_APPROVALS = process.env.NTFY_TOPIC_APPROVALS || 'limengyi-approvals'
@@ -13,7 +14,7 @@ function authHeaders() {
 
 /** 發布一般通知 */
 export async function notify(title, body, tags = []) {
-  if (!BASE) return
+  if (!NTFY_ENABLED || !BASE) return
   await fetch(`${BASE.replace(/\/$/, '')}/${TOPIC_NOTIFY}`, {
     method: 'POST',
     headers: { ...authHeaders(), Title: encodeHeader(title), Tags: tags.join(',') },
@@ -23,8 +24,8 @@ export async function notify(title, body, tags = []) {
 
 /** 發布審核通知 (含 action 按鈕 + JSON payload) */
 export async function publishApproval(approval) {
-  if (!BASE) {
-    console.warn('[ntfy] 未設定 NTFY_BASE_URL,略過推播 (示範模式)')
+  if (!NTFY_ENABLED || !BASE) {
+    if (NTFY_ENABLED && !BASE) console.warn('[ntfy] 未設定 NTFY_BASE_URL,略過推播')
     return
   }
   // actionToken 隨通知下發;唯有收到此通知者持有 token 才能 approve/reject

@@ -1,58 +1,81 @@
-# infra/zeabur — 部署指南
+# infra/zeabur — 部署指南（精簡版 2026-06-23）
 
-Zeabur 不支援 docker-compose，**每個服務各自部署**（Git 子目錄或 Docker 映像）。完整背景見 `docs/03-cloud-librechat-zeabur.md`。
+> 完整雷區 → [docs/17-lessons-learned-and-war-stories.md](../../docs/17-lessons-learned-and-war-stories.md)  
+> Service ID → [.deploy-state.md](.deploy-state.md)
 
-## 服務清單
+Zeabur **每服務獨立部署**（無 docker-compose）。
 
-| 服務 | 來源 | 對外 | 穩定度 | 持久卷 | 必填 env |
-| --- | --- | --- | --- | --- | --- |
-| ntfy（推播） | `binwiederhier/ntfy` + `server.yml`（pin 版本） | HTTPS | **Tier 0 護欄** | `/var/cache/ntfy`, `/var/lib/ntfy` | VAPID 金鑰 |
-| approval-svc（審核） | `services/approval`（Dockerfile） | HTTPS | **Tier 0 護欄** | `/app/data` | NTFY_*, VAPID_*, APPROVAL_BASE_URL, **APPROVAL_TOKEN** |
-| LibreChat（大腦/控制平面） | 官方映像 ghcr.io/danny-avila/librechat（pin 版本） | Web UI | Tier 1 | （見 docs/03） | LLM 金鑰、MONGO_URI、CREDS_*/JWT_* |
-| MongoDB（LibreChat 狀態） | 官方映像（pin 版本） | 內網 | Tier 1 | `/data/db` | — |
-| Hermes（24/7 worker，Phase C） | 便宜 VPS（非 Zeabur 亦可） | 內網/通道 | Tier 2 | `~/.hermes` | LLM 金鑰、APPROVAL_TOKEN |
-| oneai-pwa（介面） | `apps/oneai-pwa`（Dockerfile） | HTTPS | 靜態 | — | VITE_*（build args） |
-| **rag-svc（RAG 大腦,常駐）** | `brain/`（`brain/rag/Dockerfile`） | 內網 | Tier 1 | `/app/.chroma` | `EMBEDDING_*`（OpenRouter 嵌入） |
+---
 
-> 放置原則與穩定度分層完整說明見 `docs/03` §3.9–3.10。重點:**Tier 0 護欄(ntfy + approval-svc)與 Tier 1 大腦分機部署**、全部**版本釘死(禁 `:latest`)**、有狀態的掛持久卷 + 每日備份。
+## 現役服務（4 個核心）
 
-## 部署順序（有依賴）
+| 服務 | Build context | Dockerfile | 對外 | 部署方式 |
+|------|---------------|------------|------|----------|
+| **oneai-approval** | `services/approval/` | `services/approval/Dockerfile` | HTTPS | GitHub `master` 自動 |
+| **oneai-pwa-v2** | `apps/oneai-pwa/` | `apps/oneai-pwa/Dockerfile` | HTTPS | GitHub `master` 自動 |
+| **rag-svc** | `brain/` | `brain/Dockerfile` | 內網 | **手動** `zeabur deploy` |
+| **oneai-backup** | `infra/zeabur/backup/` | 同目錄 | 內網 | 手動 |
 
-1. **ntfy**：先產 VAPID 金鑰
-   ```bash
-   npm run gen-vapid -w services/approval
-   ```
-   把 public/private 填進 `infra/zeabur/ntfy/server.yml` 並設 `base-url`。映像 `binwiederhier/ntfy`，啟動指令 `serve`，掛載 `server.yml`。
+### 不要用的 Dockerfile 副本
 
-2. **approval-svc**（**Tier 0 護欄,最高穩定**）：以 `services/approval` 為 build context（含 Dockerfile，已含 `HEALTHCHECK` 與 `VOLUME /app/data`）。
-   - **掛持久卷至 `/app/data`**（否則重啟掉待審/決定）。
-   - 設 env：
-     `NTFY_BASE_URL` `NTFY_TOKEN` `NTFY_TOPIC_APPROVALS` `NTFY_TOPIC_NOTIFY`
-     `VAPID_PUBLIC_KEY` `VAPID_PRIVATE_KEY` `VAPID_SUBJECT`
-     `APPROVAL_BASE_URL`(=本服務對外網址) `ALLOWED_ORIGIN`(=PWA 網址)
-     **`APPROVAL_TOKEN`(必填,組件間鑑權的強隨機值)** `APPROVAL_DEFAULT_TIMEOUT_SEC`(預設 1800)
-   - 同一個 `APPROVAL_TOKEN` 也要設到「會呼叫審核」的 agent 端（bridge `mcp-core` / hands）。
+根目錄 `Dockerfile.approval*`、`Dockerfile.oneai-pwa-v2`、`Dockerfile.zeabur` 為歷史遺留，**canonical 只有上表兩份**。
 
-3. **rag-svc（RAG 大腦,常駐）**：build context = `brain/`，Dockerfile = `brain/rag/Dockerfile`；掛持久卷 `/app/.chroma`；設 OpenRouter 嵌入 env（`EMBEDDING_BASE_URL`/`EMBEDDING_API_KEY`/`EMBEDDING_MODEL`）。啟動會自動建索引再起服務。`GET /health` 綠燈即可。
+---
 
-4. **LibreChat + MongoDB**：官方映像;掛 `infra/zeabur/librechat/librechat.yaml`（`CONFIG_PATH=/app/librechat.yaml`）;設 OpenRouter `OPENAI_BASE_URL`/`OPENAI_API_KEY`、認證機密、**`RAG_API_URL`（=rag-svc 內網位址）**、`APPROVAL_BASE_URL`/`APPROVAL_TOKEN`。知識庫檢索走 `mcp-core` 的 `vault_query`（已改 HTTP 呼叫 rag-svc）。完整 env 與順序見 `docs/16-step3-cloud-deploy.md`。
+## 部署順序
 
-5. **oneai-pwa**：以 `apps/oneai-pwa` 為 build context。Build args 填 `VITE_*`
-   （`VITE_NTFY_BASE_URL` `VITE_APPROVAL_BASE_URL` `VITE_LIBRECHAT_BASE_URL`
-   `VITE_VAPID_PUBLIC_KEY` `VITE_NTFY_TOPIC_*`）。部署後手機開網址 → 加到主畫面 → 開啟推播。
-   > 前端**不需**內嵌 `APPROVAL_TOKEN`：approve/reject 用每筆通知夾帶的一次性 `actionToken` 驗證。
+### 1. rag-svc
 
-## 驗證
+```powershell
+# context = brain/，掛 Volume /app/.chroma
+# env: EMBEDDING_* (OpenRouter 嵌入)
+# 驗證: GET http://rag-svc.zeabur.internal:8080/health → doc_count
+```
 
-- `GET https://<approval>/health` → `{ ok: true }`（healthcheck 綠燈）。
-- 無 token 呼叫 `POST /request` → `401`；設 `APPROVAL_TOKEN` 後帶 `Bearer` 才放行。
-- PWA「模擬審核」按鈕應彈出審核卡片；ntfy 連線顯示「● 連線」。
-- 真實審核：MCP `request_approval` → 非阻塞回 `approval_id` → 手機收到含「允許／拒絕」按鈕的推播 → agent 端輪詢 `/status/<id>` 取回決定。
-- **穩定性**：重啟 approval-svc 後 `/status/<未結案 id>` 仍回 `settled:false`（`/app/data` 持久卷生效）；各服務版本為固定 tag。
+### 2. oneai-approval
+
+- Git push `master` 即觸發 rebuild
+- 必填 env 見 `.deploy-state.md`
+- 驗證：`GET https://oneai-approval.zeabur.app/health`
+
+### 3. oneai-pwa-v2
+
+- Git push 觸發；build args 烤入 `VITE_*`
+- nginx 必須 `listen ${PORT};`
+- 驗證：開 https://oneai-mengyi.zeabur.app
+
+### 4. oneai-backup
+
+- Dashboard → Storage → `/data/backups`
+- 需 `MONGO_URI` 指向 Mongo（若 LibreChat 恢復時）
+
+---
+
+## 選配 / 已下線
+
+| 服務 | 狀態 | 文件 |
+|------|------|------|
+| LibreChat + MongoDB | 2026-06 起未運行 | [docs/03](../../docs/03-cloud-librechat-zeabur.md) |
+| ntfy | 未部署 | Web Push 為主 |
+| Hermes VPS | Phase C | [docs/15](../../docs/15-multi-agent-orchestration.md) |
+
+恢復 LibreChat 時：marketplace Mongo `KXL04P`、repo 根 build + `ZBPACK_DOCKERFILE_PATH=infra/zeabur/librechat/Dockerfile`。
+
+---
+
+## 驗收清單
+
+- [ ] `GET /health` → `{ ok: true }`
+- [ ] `python scripts/brain-smoke.py` 通過
+- [ ] `python scripts/e2e-test.py` 通過
+- [ ] PWA 聊天有回覆；Header 🫀 記憶數合理
+- [ ] 本機 worker 在線（`/agents/status` 非空）
+- [ ] backup Volume 已掛
+
+---
 
 ## 安全
 
-- ntfy 開 `auth-default-access: deny-all`，建立授權帳號。
-- 私鑰（VAPID private、NTFY_TOKEN）只放後端 env，**絕不**進前端或 git。
-- `APPROVAL_TOKEN`（組件間鑑權）只放後端 env；前端不需內嵌（用每筆 `actionToken`）。
-- 細節見 `docs/08-security.md`、`docs/07-guardrail-ntfy-approval.md`。
+- 私鑰只放 Zeabur env，不進 git
+- PWA 用 `VITE_CHAT_TOKEN`，不用完整 `APPROVAL_TOKEN`
+- 詳見 [docs/08-security.md](../../docs/08-security.md)

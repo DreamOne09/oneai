@@ -43,6 +43,7 @@ def chunk_file(path: Path, vault: Path) -> list[dict]:
         "title": str(post.get("title", path.stem)),
         "tags": ",".join(post.get("tags", []) or []),
         "source": str(post.get("source", "")),
+        "kind": str(post.get("kind", "memory")),
     }
     out = []
     for i, chunk in enumerate(_split_text(post.content, CHUNK_SIZE, CHUNK_OVERLAP)):

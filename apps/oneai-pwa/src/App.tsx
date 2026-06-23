@@ -7,7 +7,6 @@ import AgentGrid from './components/AgentGrid'
 import { BrainPanel } from './components/BrainPanel'
 import { AgyPanel } from './components/AgyPanel'
 import DevPanel from './components/DevPanel'
-import { connectNtfy } from './lib/ntfy'
 import { startHeartbeat } from './lib/heartbeat'
 import { enablePush } from './lib/push'
 import { useOneAI } from './state/store'
@@ -120,15 +119,21 @@ export default function App() {
   const status    = useOneAI((s) => s.status)
   const connected = useOneAI((s) => s.connected)
   const model     = useOneAI((s) => s.currentModel)
+  const requestedTab = useOneAI((s) => s.requestedTab)
+  const memoryHighlight = useOneAI((s) => s.memoryHighlight)
+  const clearRequestedTab = useOneAI((s) => s.clearRequestedTab)
 
   useEffect(() => {
     const stopHeartbeat = startHeartbeat()
-    const stopNtfy = connectNtfy()
-    return () => {
-      stopHeartbeat()
-      stopNtfy()
-    }
+    return () => stopHeartbeat()
   }, [])
+
+  useEffect(() => {
+    if (requestedTab) {
+      setTab(requestedTab)
+      clearRequestedTab()
+    }
+  }, [requestedTab, clearRequestedTab])
 
   // 點 Agents tab 時暫時縮小 orb
   const orbSmall = tab !== 'chat'
@@ -190,7 +195,7 @@ export default function App() {
           {/* Memory Tab */}
           {tab === 'memory' && (
             <div className="tab-scroll">
-              <BrainPanel inline onClose={() => setTab('chat')} />
+              <BrainPanel inline highlightQuery={memoryHighlight} onClose={() => setTab('chat')} />
             </div>
           )}
 
@@ -213,8 +218,8 @@ export default function App() {
 
       </div>
 
-      {/* 浮動面板 */}
-      <DevPanel />
+      {/* 浮動面板（僅開發模式） */}
+      {import.meta.env.DEV && <DevPanel />}
       {showAgy && <AgyPanel onClose={() => setShowAgy(false)} />}
     </div>
   )

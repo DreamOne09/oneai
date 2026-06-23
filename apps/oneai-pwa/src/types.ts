@@ -33,6 +33,7 @@ export interface ActivityItem {
   memoriesUsed?: number
   searchSources?: SearchSource[]
   brainLearned?: boolean
+  memoryQuery?: string
   agentDetails?: AgentDetail[]
 }
 

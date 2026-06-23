@@ -1,0 +1,131 @@
+[
+  {
+    "loop": 1,
+    "scenario": "Loop 1 · 開場寒暄",
+    "intent": "warmup",
+    "msg": "嗨梅蘭，今天狀態如何？",
+    "ok": true,
+    "elapsed": 2.4,
+    "status": 200,
+    "agent_ids": [
+      "coach"
+    ],
+    "agent_count": 1,
+    "reply_len": 104,
+    "memories_used": 4,
+    "remembered": true,
+    "memory_preview_ok": true,
+    "web_search": null,
+    "can_execute": null,
+    "model": "google/gemini-2.5-flash"
+  },
+  {
+    "loop": 2,
+    "scenario": "Loop 2 · 寫入可記憶的事實",
+    "intent": "remember",
+    "msg": "記住：我下週三要去曼谷出差，住 Sukhumvit 附近。",
+    "ok": true,
+    "elapsed": 3.3,
+    "status": 200,
+    "agent_ids": [
+      "butler"
+    ],
+    "agent_count": 1,
+    "reply_len": 368,
+    "memories_used": 4,
+    "remembered": true,
+    "memory_preview_ok": true,
+    "web_search": null,
+    "can_execute": null,
+    "model": "google/gemini-2.5-flash"
+  },
+  {
+    "loop": 3,
+    "scenario": "Loop 3 · 調取記憶",
+    "intent": "recall",
+    "msg": "你還記得我下週的行程嗎？",
+    "ok": true,
+    "elapsed": 2.3,
+    "status": 200,
+    "agent_ids": [
+      "butler"
+    ],
+    "agent_count": 1,
+    "reply_len": 185,
+    "memories_used": 4,
+    "remembered": true,
+    "memory_preview_ok": true,
+    "web_search": null,
+    "can_execute": null,
+    "model": "google/gemini-2.5-flash"
+  },
+  {
+    "loop": 4,
+    "scenario": "Loop 4 · 網路搜尋",
+    "intent": "search",
+    "msg": "搜尋 2026 年曼谷 Sukhumvit 附近新開的 co-working space",
+    "ok": true,
+    "elapsed": 12.1,
+    "status": 200,
+    "agent_ids": [
+      "researcher",
+      "butler"
+    ],
+    "agent_count": 2,
+    "reply_len": 726,
+    "memories_used": 4,
+    "remembered": true,
+    "memory_preview_ok": true,
+    "web_search": {
+      "query": "搜尋 2026 年曼谷 Sukhumvit 附近新開的 co-working space",
+      "provider": "tavily",
+      "sources": [
+        {
+          "title": "Best Coworking Spaces on Sukhumvit 2026: Digital Nomad Guide",
+          "url": "https://www.superagent.co/en/blog/best-coworking-spaces-on-sukhumvit-2026-digital-nomad-guide"
+        },
+        {
+          "title": "Best Coworking Spaces Bangkok 2026: Top 10 Picks, Prices & Neighborhood Tips - Asia Lifestyle Magazine",
+          "url": "https://www.asialifestylemagazine.com/best-coworking-spaces-bangkok-2026"
+        },
+        {
+          "title": "Co-Working Space in Bangkok True Digital Park",
+          "url": "https://www.truedigitalpark.com/en/workplace/co-working-space"
+        },
+        {
+          "title": "Best Coworking Spaces in Bangkok: 2026 Digital Nomad Guide",
+          "url": "https://www.roampads.com/blog/bangkok-best-coworking-spaces-digital-nomad"
+        },
+        {
+          "title": "Coworking Space In Bangkok | Find Your Ideal Coworking Space",
+          "url": "https://flyspaces.com/bangkok/coworking-space"
+        }
+      ],
+      "result_count": 5
+    },
+    "can_execute": null,
+    "model": "google/gemini-2.5-flash"
+  },
+  {
+    "loop": 5,
+    "scenario": "Loop 5 · 多 Agent 決策",
+    "intent": "multi_agent",
+    "msg": "分析：我應該先優化手機 PWA 體驗，還是先讓桌機 worker 穩定？給我 3 個行動建議。",
+    "ok": true,
+    "elapsed": 25.2,
+    "status": 200,
+    "agent_ids": [
+      "engineer",
+      "pm",
+      "analyst"
+    ],
+    "agent_count": 3,
+    "reply_len": 1418,
+    "memories_used": 4,
+    "remembered": true,
+    "memory_preview_ok": true,
+    "web_search": null,
+    "can_execute": true,
+    "model": "google/gemini-2.5-flash"
+  }
+]

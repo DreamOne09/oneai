@@ -1,8 +1,11 @@
-# 07 - The Guardrail：ntfy 審核護欄（Human-in-the-Loop）
+# 07 - The Guardrail：審核護欄（Human-in-the-Loop）
+
+> ⚠️ **狀態（2026-06-23）**：主推播改 **Web Push（VAPID）** 直連 PWA；**ntfy 延後未部署**。  
+> 心跳改輪詢 `approval-svc /health`（非 ntfy SSE）。現役實作見 `services/approval/` + PWA `lib/push.ts`。
 
 ## 7.1 目標
 
-在關鍵 / 不可逆動作前強制暫停，推播到手機（Pixel 9a）請求授權，避免自動化失控。推播通道採**自架 ntfy**（部署於 Zeabur），手機端由 OneAI PWA（見 [11](11-oneai-pwa-interface.md)）接收，使用 Android 原生 Web Push API。
+在關鍵 / 不可逆動作前強制暫停，推播到手機（Pixel 9a）請求授權。通道：**Web Push**（主）；ntfy（備援，未部署）。
 
 ## 7.2 需審核的動作（審核節點）
 

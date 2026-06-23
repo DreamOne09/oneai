@@ -27,6 +27,7 @@ class QueryReq(BaseModel):
     query: str = Field(min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
     max_chars: int = Field(default=DEFAULT_MAX_CHARS, ge=200)
+    kind: str | None = Field(default=None, pattern="^(memory|preference|reflection|sop)$")
 
 
 class RememberReq(BaseModel):
@@ -65,7 +66,7 @@ def health():
 @app.post("/query")
 def do_query(req: QueryReq):
     try:
-        return {"results": _query(req.query, req.top_k, req.max_chars)}
+        return {"results": _query(req.query, req.top_k, req.max_chars, req.kind)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"檢索失敗: {e}")
 

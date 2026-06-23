@@ -1,0 +1,75 @@
+/**
+ * brain-intel 單元測試 — node scripts/brain-intel.test.js
+ */
+import {
+  filterMemories,
+  isSmallTalk,
+  needsExplicitRemember,
+  cleanSearchQuery,
+  shouldRemember,
+  mergeAgentRoute,
+  enforceSearchReply,
+  classifyMemoryKind,
+  MIN_MEMORY_SCORE,
+} from '../services/approval/src/brain-intel.js'
+
+let passed = 0
+let failed = 0
+
+function assert(cond, msg) {
+  if (cond) { passed++; return }
+  failed++
+  console.error('FAIL:', msg)
+}
+
+assert(isSmallTalk('嗨'), '寒暄 hi')
+assert(isSmallTalk('hello!'), '寒暄 hello')
+assert(!isSmallTalk('記住：我下週出差曼谷'), '非寒暄 remember')
+
+assert(needsExplicitRemember('記住：偏好繁體'), 'explicit remember')
+assert(needsExplicitRemember('幫我記這件事'), '幫我記')
+assert(!needsExplicitRemember('搜尋 Tavily'), '非 remember')
+
+assert(cleanSearchQuery('搜尋 Tavily API') === 'Tavily API', 'clean search 搜尋')
+assert(cleanSearchQuery('幫我查一下 React 19') === 'React 19', 'clean search 查一下')
+
+const raw = [
+  { text: '高相關', score: 0.85 },
+  { text: '低相關', score: 0.4 },
+  { text: '[E2E TEST] skip', score: 0.9 },
+]
+const filtered = filterMemories(raw, '我下週出差曼谷的計畫')
+assert(filtered.length === 1 && filtered[0].text === '高相關', 'filter score + e2e')
+assert(filterMemories(raw, '嗨').length === 0, 'small talk no memory inject')
+
+assert(!shouldRemember('嗨', '你好呀', { explicitRemember: false, smallTalk: true }), 'no remember small talk')
+assert(shouldRemember('記住：偏好', '好的', { explicitRemember: true, smallTalk: false }), 'remember explicit')
+assert(
+  shouldRemember('a'.repeat(30), 'b'.repeat(130), { explicitRemember: false, smallTalk: false }),
+  'remember long exchange',
+)
+
+const route = mergeAgentRoute(['engineer'], '記住我偏好深色模式', ['搜尋'], ['記住'])
+assert(route.includes('butler'), 'butler on remember')
+
+const ws = {
+  provider: 'tavily',
+  sources: [
+    { title: 'Tavily Docs', url: 'https://tavily.com' },
+    { title: 'API Guide', url: 'https://example.com' },
+    { title: 'Search Tips', url: 'https://example.org' },
+  ],
+  snippets: ['s1', 's2', 's3'],
+}
+const enforced = enforceSearchReply('短回覆', ws)
+assert(enforced.includes('Tavily Docs'), 'enforce search source 1')
+assert(enforced.includes('API Guide'), 'enforce search source 2')
+assert(enforced.includes('Search Tips'), 'enforce search source 3')
+
+assert(classifyMemoryKind('記住出差日期', true) === 'preference', 'fact kind')
+assert(classifyMemoryKind('今天天氣如何', false) === 'memory', 'episodic kind')
+
+assert(MIN_MEMORY_SCORE === 0.6, 'score threshold 0.6')
+
+console.log(`\nbrain-intel: ${passed} passed, ${failed} failed`)
+process.exit(failed > 0 ? 1 : 0)

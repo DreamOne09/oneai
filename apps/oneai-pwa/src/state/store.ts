@@ -9,6 +9,7 @@ interface PushOpts {
   memoriesUsed?: number
   searchSources?: import('../types').SearchSource[]
   brainLearned?: boolean
+  memoryQuery?: string
   agentDetails?: import('../types').AgentDetail[]
 }
 
@@ -21,6 +22,8 @@ interface OneAIState {
   pendingMessage: string | null
   currentModel: string | null
   hiddenAgentIds: string[]   // 篩選：被隱藏的 agent id 列表
+  memoryHighlight: string | null
+  requestedTab: 'chat' | 'agents' | 'memory' | 'settings' | null
 
   setStatus: (s: AgentStatus) => void
   setConnected: (c: boolean) => void
@@ -32,6 +35,9 @@ interface OneAIState {
   setPending: (msg: string | null) => void
   setCurrentModel: (m: string | null) => void
   toggleAgentVisibility: (agentId: string) => void
+  openMemoryTab: (query: string) => void
+  clearRequestedTab: () => void
+  clearMemoryHighlight: () => void
 }
 
 const uid = () =>
@@ -48,6 +54,8 @@ export const useOneAI = create<OneAIState>()(
       pendingMessage: null,
       currentModel: null,
       hiddenAgentIds: [],
+      memoryHighlight: null,
+      requestedTab: null,
 
       setStatus: (status) => set({ status }),
       setConnected: (connected) => set({ connected }),
@@ -69,6 +77,7 @@ export const useOneAI = create<OneAIState>()(
               memoriesUsed: opts?.memoriesUsed,
               searchSources: opts?.searchSources,
               brainLearned: opts?.brainLearned,
+              memoryQuery: opts?.memoryQuery,
               agentDetails: opts?.agentDetails,
             },
             ...st.activities,
@@ -95,6 +104,10 @@ export const useOneAI = create<OneAIState>()(
             ? st.hiddenAgentIds.filter((id) => id !== agentId)
             : [...st.hiddenAgentIds, agentId],
         })),
+
+      openMemoryTab: (query) => set({ requestedTab: 'memory', memoryHighlight: query }),
+      clearRequestedTab: () => set({ requestedTab: null }),
+      clearMemoryHighlight: () => set({ memoryHighlight: null }),
     }),
     {
       name: 'oneai-state',
