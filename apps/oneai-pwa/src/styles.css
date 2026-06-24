@@ -693,6 +693,52 @@ body {
 }
 .brain-textarea:focus { border-color: rgba(103,232,249,0.35); }
 .brain-save-btn { align-self: flex-end; }
+
+/* ── 記憶知識圖譜 ─────────────────────────────────────────────────────────── */
+.brain-view-toggle {
+  display: flex; gap: 8px; padding: 0 16px 10px;
+}
+.brain-view-btn {
+  flex: 1; padding: 8px 12px; border-radius: 10px; font-size: 12px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(103,232,249,0.12);
+  color: var(--muted); cursor: pointer;
+}
+.brain-view-btn--active {
+  color: var(--text); border-color: rgba(103,232,249,0.4);
+  background: rgba(103,232,249,0.08);
+}
+.memory-graph { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; min-height: 380px; }
+.memory-graph-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; color: var(--muted);
+}
+.memory-graph-legend { display: flex; align-items: center; gap: 10px; flex: 1; }
+.legend-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px;
+}
+.legend-dot--memory { background: #60a5fa; }
+.legend-dot--tag { background: #e879f9; }
+.legend-dot--hub { background: #4ade80; }
+.memory-graph-stats { opacity: 0.85; }
+.memory-graph-btn { padding: 4px 10px !important; font-size: 11px !important; }
+.memory-graph-canvas-wrap {
+  flex: 1; min-height: 320px; border-radius: 14px;
+  background: rgba(0,0,0,0.25); border: 1px solid rgba(103,232,249,0.12);
+  overflow: hidden; position: relative;
+}
+.memory-graph-detail {
+  padding: 12px 14px; border-radius: 12px; max-height: 140px; overflow-y: auto;
+}
+.memory-graph-detail-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+.memory-graph-detail-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.memory-graph-detail-text { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 0; }
+.kind-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(96,165,250,0.15); color: #93c5fd;
+}
+.kind-badge.kind-preference { background: rgba(167,139,250,0.15); color: #c4b5fd; }
+.kind-badge.kind-system { background: rgba(74,222,128,0.15); color: #86efac; }
+.tag-chip { font-size: 10px; color: #e879f9; }
+
 /* BrainPanel inline 模式（Memory Tab）*/
 .brain-panel--inline {
   max-height: none !important;

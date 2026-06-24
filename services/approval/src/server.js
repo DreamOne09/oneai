@@ -11,6 +11,7 @@ import {
 import { runOrchestrateTurn } from './orchestrate-harness.js'
 import { getRagBaseUrl } from './rag-host.js'
 import { seedSystemMemoryIfNeeded } from './system-memory.js'
+import { buildMemoryGraph } from './brain-graph.js'
 import {
   AGENTS_CONFIG,
   MENGYI_BRIEF,
@@ -640,9 +641,26 @@ app.get('/agents/status', (_req, res) => {
 })
 
 // ── 數位大腦 API（管家用）───────────────────────────────────────────────────
+// GET  /brain/graph?limit=120           知識圖譜 nodes+links（需 chat token）
 // GET  /brain/memories?q=...&limit=20  查詢記憶庫（需 chat token）
 // POST /brain/remember                 手動寫入記憶（需 chat token）
 // GET  /brain/summary                  取得大腦統計摘要（公開）
+
+app.get('/brain/graph', requireChatToken, async (req, res) => {
+  const limit = Math.min(Number(req.query.limit ?? 120), 200)
+  try {
+    const RAG_HOST = getRagBaseUrl()
+    const r = await fetch(`${RAG_HOST}/catalog?limit=${limit}`, {
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!r.ok) return res.status(502).json({ error: 'RAG catalog 失敗' })
+    const data = await r.json()
+    const graph = buildMemoryGraph(data.items ?? [])
+    res.json({ ...graph, total_in_db: data.total ?? 0, shown: data.shown ?? graph.nodes.length })
+  } catch (e) {
+    res.status(502).json({ error: 'RAG 連線失敗', detail: e.message?.slice(0, 80) })
+  }
+})
 
 app.get('/brain/memories', requireChatToken, async (req, res) => {
   const q = String(req.query.q ?? '孟一').slice(0, 200)

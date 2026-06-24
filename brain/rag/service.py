@@ -21,6 +21,7 @@ import config
 import chromadb
 from query_vault import query as _query, DEFAULT_MAX_CHARS
 from remember import remember as _remember
+from catalog import catalog as _catalog
 
 
 class QueryReq(BaseModel):
@@ -86,3 +87,13 @@ def do_remember(req: RememberReq):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"寫回記憶失敗: {e}")
+
+
+@app.get("/catalog")
+def do_catalog(limit: int = 120):
+    """列舉記憶片段（知識圖譜用）。"""
+    try:
+        lim = max(1, min(limit, 200))
+        return _catalog(lim)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"catalog 失敗: {e}")

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useOneAI } from '../state/store'
+import { MemoryGraphView, type GraphNode } from './MemoryGraphView'
 
 const APPROVAL_BASE = (import.meta.env.VITE_APPROVAL_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 const CHAT_TOKEN = (import.meta.env.VITE_CHAT_TOKEN as string | undefined) ?? (import.meta.env.VITE_APPROVAL_TOKEN as string | undefined) ?? ''
@@ -64,6 +65,7 @@ export function BrainPanel({ onClose, inline = false, highlightQuery = null }: B
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [view, setView] = useState<'list' | 'graph'>('graph')
   const clearMemoryHighlight = useOneAI((s) => s.clearMemoryHighlight)
 
   useEffect(() => {
@@ -144,6 +146,31 @@ export function BrainPanel({ onClose, inline = false, highlightQuery = null }: B
           <div className="brain-summary glass">{summary.summary}</div>
         )}
 
+        {/* 檢視切換 */}
+        <div className="brain-view-toggle">
+          <button
+            type="button"
+            className={`brain-view-btn${view === 'graph' ? ' brain-view-btn--active' : ''}`}
+            onClick={() => setView('graph')}
+          >
+            ◎ 圖譜
+          </button>
+          <button
+            type="button"
+            className={`brain-view-btn${view === 'list' ? ' brain-view-btn--active' : ''}`}
+            onClick={() => setView('list')}
+          >
+            ☰ 列表
+          </button>
+        </div>
+
+        {view === 'graph' ? (
+          <MemoryGraphView
+            highlightQuery={highlightQuery}
+            onSelectMemory={(node: GraphNode) => setHighlightId(node.id)}
+          />
+        ) : (
+          <>
         {/* 搜尋列 */}
         <div className="brain-panel-search">
           <input
@@ -182,8 +209,10 @@ export function BrainPanel({ onClose, inline = false, highlightQuery = null }: B
             </div>
           ))}
         </div>
+          </>
+        )}
 
-        {/* 手動寫入記憶 */}
+        {/* 手動寫入記憶 — 兩種檢視共用 */}
         <div className="brain-panel-footer">
           <div className="brain-add-label">✍ 手動告訴管家要記住的事</div>
           <textarea
