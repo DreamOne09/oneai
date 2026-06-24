@@ -117,7 +117,8 @@ const AGENT_ROLE_PROMPTS = {
 輸出：🔴 Critical / 🟡 Warning / 🔵 Suggestion，附行號與改進建議。`,
 
   researcher: `你是孟一的研究員，負責搜尋最新資訊。
-守則：基於搜尋結果分析、標注來源、結果不足時誠實說明。`,
+守則：基於搜尋結果分析、標注來源、結果不足時誠實說明。
+天氣/匯率/股價等即時問題：**只能**依搜尋摘要回答，禁止憑模型記憶瞎猜；若搜尋失敗要明說。`,
 
   security_auditor: `你是 OWASP Top 10 資安專家。
 輸出：🔴 High / 🟡 Medium / 🟢 Low，附 CWE 與修復方向；檢查跨品牌隔離。`,

@@ -1,0 +1,93 @@
+name: OneAI Cloud Hands
+
+# Cloud-First 手腳：無需本機 worker 即可跑 smoke / GTX P0 / rag redeploy
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 要執行的雲端任務
+        required: true
+        type: choice
+        options:
+          - smoke
+          - gtx-p0
+          - deploy-rag
+      approval_task_id:
+        description: approval 回報用 task id（可空）
+        required: false
+        type: string
+      triggered_by:
+        description: 觸發來源
+        required: false
+        type: string
+        default: github
+
+env:
+  APPROVAL_BASE_URL: https://oneai-approval.zeabur.app
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  cloud-hand:
+    name: ${{ inputs.job }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install deps
+        run: npm ci --ignore-scripts
+
+      - name: Load secrets into .env for scripts
+        env:
+          APPROVAL_TOKEN: ${{ secrets.APPROVAL_TOKEN }}
+          ONEAI_CHAT_TOKEN: ${{ secrets.ONEAI_CHAT_TOKEN }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          ZEABUR_TOKEN: ${{ secrets.ZEABUR_TOKEN }}
+        run: |
+          cat > .env <<EOF
+          APPROVAL_BASE_URL=${{ env.APPROVAL_BASE_URL }}
+          APPROVAL_TOKEN=${APPROVAL_TOKEN}
+          ONEAI_CHAT_TOKEN=${ONEAI_CHAT_TOKEN}
+          TAVILY_API_KEY=${TAVILY_API_KEY}
+          ZEABUR_TOKEN=${ZEABUR_TOKEN}
+          EOF
+
+      - name: Smoke (brain + scenario)
+        if: inputs.job == 'smoke'
+        run: |
+          python scripts/brain-smoke.py
+          python scripts/user-scenario-sim.py
+          python scripts/test-brain-graph-cloud.py
+
+      - name: GTX P0 subset
+        if: inputs.job == 'gtx-p0'
+        run: |
+          python scripts/oneai-gtx-100.py --only 1,2,3,11,12,13,15,16,21,22,31,33,68,77,91,95,999
+
+      - name: Deploy rag-svc (Zeabur)
+        if: inputs.job == 'deploy-rag'
+        run: |
+          npm i -g zeabur@latest
+          python scripts/deploy-rag-and-verify.py
+
+      - name: Callback approval (optional)
+        if: always() && inputs.approval_task_id != ''
+        env:
+          WORKER_TOKEN: ${{ secrets.ONEAI_WORKER_TOKEN }}
+          TASK_ID: ${{ inputs.approval_task_id }}
+        run: |
+          STATUS="done"
+          if [ "${{ job.status }}" != "success" ]; then STATUS="error"; fi
+          curl -sf -X POST "${{ env.APPROVAL_BASE_URL }}/tasks/${TASK_ID}/result" \
+            -H "Authorization: Bearer ${WORKER_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"${STATUS}\",\"summary\":\"GHA cloud-hand ${{ inputs.job }}\",\"output\":\"run=${{ github.run_id }}\"}" \
+            || echo "callback failed"

@@ -33,6 +33,10 @@ const SKIP_AUTO_RE = new RegExp(SKIP_ONLY.map(s => s.replace(/[.*+?^${}()|[\]\\]
 const RECALL_RE = /還記得|还记得|你記得|你记得|你知道我|腦中|脑中|記憶庫|记忆库|之前說|之前说|我說過|我说过/
 const SYSTEM_KNOWLEDGE_RE = /oneai|架構|系统架构|系統架構|worker\.py|cursor_worker|cursor worker|agy|zeabur|部署方式|rag-svc|approval-svc|任務佇列|佇列|怎麼跑|怎麼運|怎么运|本機.*worker|送到 cursor|shell.*agent|github.*push|INSTALL-WORKER/i
 const SEARCH_PREFIX_RE = /^(請|帮我|幫我|请)?(搜尋|搜索|查一下|查詢|找一下|查查|search|google|幫我找|帮我找)\s*/i
+/** 需即時外部資料（天氣、匯率、股價等）— 不必說「搜尋」也應走 researcher */
+const REALTIME_LOOKUP_RE = /天氣|氣溫|温度|weather|forecast|預報|预报|下雨|降雨|颱風|颱风|颶风|颶風|紫外線|紫外线|濕度|湿度|pm2\.?5|空氣品質|空气品质|風速|风速|體感|体感|穿.*(?:衣|服)|帶傘|带伞/i
+const REALTIME_FACT_RE = /(?:今天|明天|後天|后天|這週|本周|現在|今晚|明早|下午).{0,24}(?:幾度|多少度|會下雨|會不會下|要帶傘|要带伞|適合出門|适合出门)/i
+const MARKET_LOOKUP_RE = /股價|股价|匯率|汇率|油價|油价|金價|金价|比特幣|比特币|crypto|btc|eth/i
 
 export function memoryToText(m) {
   if (typeof m === 'string') return m
@@ -142,6 +146,20 @@ export function needsWebSearch(text, searchKeywords = []) {
   return searchKeywords.some(kw => t.includes(kw.toLowerCase()))
 }
 
+/** 天氣、匯率等即時資訊 — 助理必須上網查，不能靠模型瞎猜 */
+export function needsRealtimeLookup(text) {
+  const t = String(text ?? '').trim()
+  if (!t) return false
+  if (REALTIME_LOOKUP_RE.test(t)) return true
+  if (REALTIME_FACT_RE.test(t)) return true
+  if (MARKET_LOOKUP_RE.test(t)) return true
+  return false
+}
+
+export function needsAnyWebLookup(text, searchKeywords = []) {
+  return needsWebSearch(text, searchKeywords) || needsRealtimeLookup(text)
+}
+
 export function cleanSearchQuery(text) {
   let q = String(text ?? '').trim()
   q = q.replace(SEARCH_PREFIX_RE, '').replace(/[？?。！!]\s*$/, '').trim()
@@ -237,13 +255,13 @@ export function mergeAgentRoute(llmIds, userMsg, searchKeywords, _butlerKeywords
   if (needsMemoryCurate(userMsg)) {
     if (!ids.includes('butler')) ids.unshift('butler')
   }
-  if (needsWebSearch(userMsg, searchKeywords) && !ids.includes('researcher')) {
+  if (needsAnyWebLookup(userMsg, searchKeywords) && !ids.includes('researcher')) {
     ids.unshift('researcher')
   }
-  const searchOnly = needsWebSearch(userMsg, searchKeywords)
+  const searchOnly = needsAnyWebLookup(userMsg, searchKeywords)
     && !needsRecall(userMsg) && !needsExplicitRemember(userMsg)
   if (searchOnly) ids = ids.filter(id => id !== 'butler')
-  if (needsExplicitRemember(userMsg) && !needsWebSearch(userMsg, searchKeywords)) {
+  if (needsExplicitRemember(userMsg) && !needsAnyWebLookup(userMsg, searchKeywords)) {
     ids = ids.filter(id => id === 'butler' || id === 'coach')
   }
   return [...new Set(ids)].slice(0, 3)
