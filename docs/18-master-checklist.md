@@ -218,6 +218,9 @@ python scripts\human-loop-sim.py
 | I-01 | [x] | S8 ✅ |
 | J-01~J-02, K-01, L-01 | [x] | harness 已合併 |
 | M-01 kind | [x] | recall score 0.2 + fallback queries（`454765a`） |
+| BRN-01 | [x] | RAG `/stats` 準確 doc_count + `/brain/summary` by_kind（`502955c`） |
+| BRN-02 | [x] | Butler Phase B：`/brain/curate` + 「整理記憶庫」快徑（`502955c`） |
+| BRN-03 | [x] | `scripts/deploy-rag-and-verify.py` 一鍵 redeploy 驗收（`502955c`） |
 | WRK-04/05 | [x] | cli_bridge + agents-config.js |
 | WRK-01~03 | [ ] | **§2 你要跑** |
 
@@ -270,6 +273,7 @@ python scripts\human-loop-sim.py
 | 2026-06-23 | AI | WRK-04/05, memory recall 程式 | agents-config、harness |
 | 2026-06-23 | AI | TST-01（10/10） | recall score fix `454765a` + 代跑 worker |
 | 2026-06-23 | AI | agent-evolve-sim | 6/6 skill 裝/進化/RAG |
+| 2026-06-23 | AI | BRN-01~03 | stats/curate/deploy 腳本 `502955c`；雲端待 DEP-04 |
 | | **你** | LOC-00 | |
 | | **你** | WRK-01 | |
 | | **你** | WRK-02 | |
