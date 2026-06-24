@@ -153,6 +153,15 @@ export const store = {
    *   例: 'cursor_agent' | ['shell','agent']
    */
   claimNextQueued(typeFilter = null) {
+    const staleMs = Number(process.env.TASK_STALE_MS || 5 * 60 * 1000)
+    const now = Date.now()
+    for (const t of tasks.values()) {
+      if (t.status === 'running' && t.claimedAt && now - t.claimedAt > staleMs) {
+        t.status = 'queued'
+        t.requeuedAt = now
+        delete t.claimedAt
+      }
+    }
     const allowed = typeFilter
       ? (Array.isArray(typeFilter) ? typeFilter : typeFilter.split(',').map(s => s.trim()))
       : null

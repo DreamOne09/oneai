@@ -133,6 +133,8 @@ def _run_cursor_agent(task: dict) -> dict:
     payload = task.get("payload", {})
     prompt  = payload.get("prompt", "")
     cwd     = payload.get("cwd") or DEFAULT_CWD
+    if not str(cwd).strip():
+        cwd = DEFAULT_CWD
     model   = payload.get("model") or DEFAULT_MODEL
 
     if not prompt:

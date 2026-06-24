@@ -103,7 +103,7 @@ export async function runOrchestrateTurn(deps, input) {
       const prompt = buildBrowserResearchPrompt(userMsg)
       const task = enqueueTask('cursor_agent', {
         prompt,
-        cwd: defaultCursorCwd ?? null,
+        cwd: defaultCursorCwd || '.',
         source: 'browser_deep_research',
         user_request: userMsg.slice(0, 500),
       })

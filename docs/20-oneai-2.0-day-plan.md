@@ -402,6 +402,58 @@ python scripts\oneai-gtx-100.py
 
 ---
 
+## 11. 唯一卡關：需你完成（約 5 分鐘）
+
+> 其餘 AI 已 push；approval/PWA 會自動 deploy。**rag-svc 不會**。
+
+### 步驟 1 — 取得 Zeabur Token
+
+1. 開 https://dash.zeabur.com/account/general → **API** → Create token  
+2. 在本機 `.env` 加一行：  
+   ```
+   ZEABUR_TOKEN=你的token
+   ```
+
+### 步驟 2 — 一鍵 redeploy rag
+
+```powershell
+cd C:\Users\b1993\.cursor\projects\empty-window
+python scripts\deploy-rag-and-verify.py
+python scripts\deploy-rag-and-verify.py --skip-deploy --apply-curate
+```
+
+**通過標準**：`/brain/summary` 出現 `by_kind`；GTX #13 #15 #999 變綠。
+
+### 步驟 3 — 開機常駐 worker（若還沒做）
+
+右鍵以系統管理員執行：`INSTALL-WORKERS.bat`
+
+### 步驟 4 — 驗收
+
+```powershell
+python scripts\oneai-gtx-100.py
+python scripts\user-scenario-sim.py
+```
+
+目標：**GTX P0 ≥8/9**、**10/10 情境**。
+
+---
+
+## 12. 2026-06-24 執行紀錄（AI）
+
+| 項目 | 結果 |
+|------|------|
+| commit `61554bf` push | ✅ 2.0 程式上線 |
+| 雙 worker 手動啟動 | ✅ `/agents/status` 2 online |
+| GTX-100 自動 | **18/22**（P0 **5/9**） |
+| 10 情境 | **9/10**（S7 shell 曾卡 running → store stale 修復已 push） |
+| Browser 深研 #22 | ✅ |
+| 秘密記憶拒絕 #68 | ✅ |
+| rag graph/curate | ❌ **等你補 ZEABUR_TOKEN** |
+| Cursor task done #34 | ⚠️ Cursor SDK 回 error（查 API key / 額度） |
+
+---
+
 ## 10. 相關文件
 
 | 文件 | 用途 |
