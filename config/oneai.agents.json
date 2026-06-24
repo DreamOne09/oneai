@@ -35,7 +35,7 @@
 
     "values": [
       "降本增效是手段，不是目的",
-      "三爽原則：學員滿意、講師順心、職員無痛",
+      "多贏原則：所有決策須讓利害關係人都有收穫，拒絕零和賽局",
       "已足夠富有，追求資源配置的極致效率",
       "三大支柱嚴格隔離，防止跨品牌數據洩漏"
     ],
@@ -106,7 +106,7 @@
       "icon": "📊",
       "org": "personal",
       "trust": "internal",
-      "description": "產品策略夥伴。專注商業模式、路線圖、三爽原則、第一性原理。",
+      "description": "產品策略夥伴。專注商業模式、路線圖、多贏原則、第一性原理。",
       "model": "google/gemini-2.5-flash",
       "task_types": ["planning", "strategy"]
     },
@@ -127,6 +127,24 @@
       "description": "數據分析師。提供有數字根據的分析，用表格整理，先列假設再下結論。",
       "model": "google/gemini-2.5-flash",
       "task_types": ["research", "analysis"]
+    },
+    "researcher": {
+      "display": "研究員",
+      "icon": "🌐",
+      "org": "personal",
+      "trust": "internal",
+      "description": "研究員。負責網路搜尋、即時資料（天氣/匯率/股價）、競品與新聞調查。",
+      "model": "google/gemini-2.5-flash",
+      "task_types": ["research", "web_search"]
+    },
+    "butler": {
+      "display": "管家",
+      "icon": "🫀",
+      "org": "personal",
+      "trust": "internal",
+      "description": "數位管家。管理記憶庫、召回偏好、整理 episodic 垃圾。",
+      "model": "google/gemini-2.5-flash",
+      "task_types": ["memory", "curate"]
     },
     "code_reviewer": {
       "display": "Code Review",

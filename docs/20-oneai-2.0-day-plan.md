@@ -88,12 +88,12 @@ cd C:\Users\b1993\.cursor\projects\empty-window
 ```
 
 - [ ] **A1** `.env` 補齊（見 [18 §2 步驟 0](18-master-checklist.md)）  
-  - `ZEABUR_TOKEN` ← [Dashboard API](https://dash.zeabur.com/account/general)  
+  - `zeabur auth login`（已登入則略）— **不必手動填 ZEABUR_TOKEN**  
   - `CURSOR_API_KEY` ← cursor.com/dashboard/integrations  
-- [ ] **A2** 驗證 token：`python scripts/zeabur-cli.py services`  
+- [ ] **A2** 驗證 Zeabur：`zeabur auth status` 或 `python scripts/zeabur-cli.py services`  
 - [ ] **A3** 記錄基線：`python scripts/user-scenario-sim.py` → 預期 10/10（雲端部分）
 
-**治本**：無 token = rag 永遠舊映像；無 CURSOR_API_KEY = 深研假陽性。
+**治本**：未 `zeabur auth login` = rag 無法 redeploy；無 CURSOR_API_KEY = 深研假陽性。
 
 ---
 
@@ -266,7 +266,7 @@ cd C:\Users\b1993\.cursor\projects\empty-window
 | 41 | 提案大綱 | DreamOne 企業提案 | pm | vault+persona | ❌ | P1 | N |
 | 42 | 報價 `[審]` | scope 報多少 | pm | HITL | ❌ | P1 | N |
 | 43 | OKR | Q3 三個 OKR | pm | 結構化 | ⚠️ | P2 | N |
-| 44 | 三爽檢查 | 三爽嗎？ | pm | values | ⚠️ | P2 | N |
+| 44 | 多贏檢查 | 這決策多贏嗎？誰會受傷？ | pm | values | ⚠️ | P2 | N |
 | 45 | 5-Why | 學員流失 | analyst | 五層 | ❌ | P2 | N |
 | 46 | battlecard | vs 競品 X | analyst | 表+話術 | ❌ | P2 | N |
 | 47 | 會前 brief | 明天客戶會 | pm+res | calendar | ❌ | P1 | N |
@@ -402,40 +402,30 @@ python scripts\oneai-gtx-100.py
 
 ---
 
-## 11. 唯一卡關：需你完成（約 5 分鐘）
+## 11. 剩餘卡關（2026-06-24 更新）
 
-> 其餘 AI 已 push；approval/PWA 會自動 deploy。**rag-svc 不會**。
+> rag-svc 已透過 `zeabur deploy` 升級；GTX **21/22**（P0 **8/9**）。
 
-### 步驟 1 — 取得 Zeabur Token
-
-1. 開 https://dash.zeabur.com/account/general → **API** → Create token  
-2. 在本機 `.env` 加一行：  
-   ```
-   ZEABUR_TOKEN=你的token
-   ```
-
-### 步驟 2 — 一鍵 redeploy rag
+### 步驟 1 — Zeabur（通常已完成）
 
 ```powershell
-cd C:\Users\b1993\.cursor\projects\empty-window
+zeabur auth status
+# 若未登入：zeabur auth login
 python scripts\deploy-rag-and-verify.py
-python scripts\deploy-rag-and-verify.py --skip-deploy --apply-curate
 ```
 
-**通過標準**：`/brain/summary` 出現 `by_kind`；GTX #13 #15 #999 變綠。
-
-### 步驟 3 — 開機常駐 worker（若還沒做）
+### 步驟 2 — 開機常駐 worker（若還沒做）
 
 右鍵以系統管理員執行：`INSTALL-WORKERS.bat`
 
-### 步驟 4 — 驗收
+### 步驟 3 — 驗收
 
 ```powershell
 python scripts\oneai-gtx-100.py
 python scripts\user-scenario-sim.py
 ```
 
-目標：**GTX P0 ≥8/9**、**10/10 情境**。
+目標：**GTX P0 9/9**（剩 #34 Cursor done）、**10/10 情境**。
 
 ---
 
@@ -449,7 +439,8 @@ python scripts\user-scenario-sim.py
 | 10 情境 | **9/10**（S7 shell 曾卡 running → store stale 修復已 push） |
 | Browser 深研 #22 | ✅ |
 | 秘密記憶拒絕 #68 | ✅ |
-| rag graph/curate | ❌ **等你補 ZEABUR_TOKEN** |
+| rag graph/curate #13 #15 #999 | ✅ **已 deploy**（by_kind + graph OK） |
+| GTX-100 自動（deploy 後） | **21/22**（P0 **8/9**） |
 | Cursor task done #34 | ⚠️ Cursor SDK 回 error（查 API key / 額度） |
 
 ---

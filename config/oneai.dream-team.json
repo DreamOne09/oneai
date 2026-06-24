@@ -1,0 +1,50 @@
+{
+  "_comment": "Dream Team 編制 — Squad 與 ad-hoc 專家池",
+  "_version": "1.0.0",
+  "squads": {
+    "strategy": {
+      "display": "策略組",
+      "leader": "coach",
+      "members": ["pm", "analyst", "coach"],
+      "process": "cross_examine",
+      "triggers": ["策略", "OKR", "路線圖", "定價", "商業", "提案"]
+    },
+    "engineering": {
+      "display": "工程組",
+      "leader": "coach",
+      "members": ["engineer", "code_reviewer", "security_auditor"],
+      "process": "sequential_review",
+      "triggers": ["部署", "deploy", "架構", "bug", "code", "API", "資安"]
+    },
+    "intel": {
+      "display": "情報組",
+      "leader": "coach",
+      "members": ["researcher", "analyst"],
+      "process": "parallel_then_rebuttal",
+      "triggers": ["搜尋", "競品", "天氣", "調查", "最新"]
+    },
+    "edu": {
+      "display": "教育組",
+      "leader": "coach",
+      "members": ["pm", "coach"],
+      "process": "cross_examine",
+      "triggers": ["學員", "講師", "多贏", "DreamOne", "課程"]
+    }
+  },
+  "ad_hoc_pool": [
+    {
+      "id": "legal-tw",
+      "display": "台灣法遵顧問",
+      "icon": "⚖️",
+      "mandate": "僅評估台灣勞基、個資、合約風險；不給非法律領域建議。",
+      "triggers": ["合約", "勞基", "個資", "GDPR", "NDA"]
+    },
+    {
+      "id": "edu-coach",
+      "display": "教育教練",
+      "icon": "📚",
+      "mandate": "DreamOne 多贏原則：學員、講師、職員與品牌皆須有收穫；拒絕零和式割捨。",
+      "triggers": ["學員滿意", "講師", "補習", "教學"]
+    }
+  ]
+}

@@ -32,6 +32,19 @@ import {
   buildDeepResearchFallbackNote,
 } from './deep-research.js'
 import { MEILAN_SYNTHESIS_BRIEF, shouldAlwaysSynthesize } from './caveman-style.js'
+import {
+  runCouncil,
+  runCooBriefing,
+  needsCouncil,
+  buildCouncilSummaryForResponse,
+} from './agent-council.js'
+import {
+  isStaffManagementIntent,
+  parseStaffCommand,
+  executeStaffCommand,
+  formatStaffActionReply,
+  buildCouncilRoster,
+} from './coo-staffing.js'
 
 export async function runOrchestrateTurn(deps, input) {
   const {
@@ -48,6 +61,10 @@ export async function runOrchestrateTurn(deps, input) {
     detectAgentsLLM,
     callOpenRouter,
     listWorkers,
+    getAgentSystem,
+    getAgentMeta,
+    getAgentModel,
+    detectAgentsFallback,
     AGENT_SYSTEMS,
     AGENTS_META,
     AGENTS_CONFIG,
@@ -95,6 +112,26 @@ export async function runOrchestrateTurn(deps, input) {
   const workerCtx = buildWorkerContext(listWorkers())
   let workerBlock = workerCtx.block
   let deepResearchFallback = false
+
+  // ⓪ 營運長人事管理（增刪改議員）
+  if (isStaffManagementIntent(userMsg)) {
+    const cmd = parseStaffCommand(userMsg)
+    const result = executeStaffCommand(cmd)
+    const reply = formatStaffActionReply(cmd, result)
+    emit('staff_done', { action: cmd?.action })
+    emit('route_done', { agents: ['coach'], staff: true })
+    emit('synth_done')
+    return {
+      reply,
+      model: 'coo-staff',
+      agents: [{ id: 'coach', icon: '🌸', display: '梅蘭', reply, model: 'coo-staff' }],
+      memories_used: 0,
+      brain: buildBrainMeta([], false, 'skip'),
+      synthesis: false,
+      staff: result.ok ? result.staff : undefined,
+      workers: workerCtx.summary,
+    }
+  }
 
   // ①a 本機 Browser 深度研究（Cursor + Browser MCP）
   if (needsDeepBrowserResearch(userMsg) && enqueueTask) {
@@ -200,8 +237,16 @@ export async function runOrchestrateTurn(deps, input) {
   if (deepResearchFallback && !agentIds.includes('researcher')) {
     agentIds = ['researcher', ...agentIds]
   }
-  agentIds = [...new Set(agentIds)].slice(0, 3)
-  emit('route_done', { agents: agentIds.length ? agentIds : ['coach'] })
+
+  const roster = buildCouncilRoster(userMsg, agentIds)
+  agentIds = roster.agentIds.length ? roster.agentIds : agentIds
+  agentIds = [...new Set(agentIds)].slice(0, 4)
+  emit('route_done', {
+    agents: agentIds.length ? agentIds : ['coach'],
+    squad: roster.squad,
+    squad_display: roster.squad_display,
+    mode: agentIds.length >= 2 ? 'council' : 'fast',
+  })
 
   // ③ 梅蘭直答
   if (agentIds.length === 0) {
@@ -240,43 +285,86 @@ export async function runOrchestrateTurn(deps, input) {
     emit('search_done', { provider: search.provider, count: search.snippets.length })
   }
 
-  // ⑤ 子 Agent 並行
-  const subResults = await Promise.allSettled(
-    agentIds.map(async (id) => {
-      const agentCfg = AGENTS_CONFIG.agents?.[id] ?? {}
-      const meta = AGENTS_META[id] ?? { icon: '🤖', display: id }
-      const baseSystem = AGENT_SYSTEMS[id] ?? `${MENGYI_BRIEF}\n你是孟一的 AI 助理，用繁體中文簡潔回覆。`
-      const agentSystem = baseSystem + memoryBlock + (id === 'researcher' ? searchResults : '')
-      const agentModel = agentCfg.model ?? CHAT_DEFAULT_MODEL
-      const finalMsgs = [{ role: 'system', content: agentSystem }, ...messages]
-      const tryList = [agentModel, ...CHAT_FALLBACK_CHAIN.filter(m => m !== agentModel)]
-      let lastErr = ''
-      for (const m of tryList) {
-        try {
-          const r = await callOpenRouter(m, finalMsgs)
-          emit('agent_done', { id })
-          return { id, icon: meta.icon, display: meta.display, reply: r.reply, model: r.model }
-        } catch (e) {
-          lastErr = e.message
+  // ⑤ 子 Agent — 議會模式（≥2 人共享 thread 辯論）或單人快徑
+  const councilMode = needsCouncil(userMsg, agentIds)
+  let succeeded = []
+  let councilMeta = null
+  let councilTranscript = null
+
+  const councilDeps = {
+    callOpenRouter,
+    getAgentSystem: getAgentSystem ?? ((id) => AGENT_SYSTEMS[id]),
+    getAgentMeta: getAgentMeta ?? ((id) => AGENTS_META[id] ?? { icon: '🤖', display: id }),
+    getAgentModel,
+    CHAT_DEFAULT_MODEL,
+    CHAT_FALLBACK_CHAIN,
+    emit,
+  }
+
+  if (councilMode && agentIds.length >= 2) {
+    const councilResult = await runCouncil(councilDeps, {
+      agentIds,
+      userMsg,
+      messages,
+      memoryBlock,
+      searchBlock: searchResults,
+      emit,
+    })
+    succeeded = councilResult.succeeded
+    councilMeta = councilResult.council
+    councilTranscript = councilResult.transcript
+    if (!succeeded.length) throw new Error('議會無有效發言')
+  } else {
+    const subResults = await Promise.allSettled(
+      agentIds.map(async (id) => {
+        const agentCfg = AGENTS_CONFIG.agents?.[id] ?? {}
+        const meta = (getAgentMeta?.(id)) ?? AGENTS_META[id] ?? { icon: '🤖', display: id }
+        const baseSystem = (getAgentSystem?.(id)) ?? AGENT_SYSTEMS[id] ?? `${MENGYI_BRIEF}\n你是孟一的 AI 助理，用繁體中文簡潔回覆。`
+        const agentSystem = baseSystem + memoryBlock + (id === 'researcher' ? searchResults : '')
+        const agentModel = getAgentModel?.(id) ?? agentCfg.model ?? CHAT_DEFAULT_MODEL
+        const finalMsgs = [{ role: 'system', content: agentSystem }, ...messages]
+        const tryList = [agentModel, ...CHAT_FALLBACK_CHAIN.filter(m => m !== agentModel)]
+        let lastErr = ''
+        for (const m of tryList) {
+          try {
+            const r = await callOpenRouter(m, finalMsgs)
+            emit('agent_done', { id })
+            return { id, icon: meta.icon, display: meta.display, reply: r.reply, model: r.model }
+          } catch (e) {
+            lastErr = e.message
+          }
         }
-      }
-      throw new Error(`[${id}] 所有模型失敗: ${lastErr}`)
-    }),
-  )
+        throw new Error(`[${id}] 所有模型失敗: ${lastErr}`)
+      }),
+    )
+    succeeded = subResults.filter(r => r.status === 'fulfilled').map(r => r.value)
+    if (!succeeded.length) throw new Error('所有子 Agent 失敗')
+  }
 
-  const succeeded = subResults.filter(r => r.status === 'fulfilled').map(r => r.value)
-  if (!succeeded.length) throw new Error('所有子 Agent 失敗')
-
-  // ⑥ 合成 — 有子 Agent 時由梅蘭（coach）統整對外回覆；子 Agent 內部為 Caveman 速報
+  // ⑥ 合成 — 議會由梅蘭 COO Briefing；其餘沿用原合成邏輯
   let finalReply
   let finalModel
-  const needsSynth = shouldAlwaysSynthesize()
-    ? succeeded.length >= 1
-    : succeeded.length > 1 || (webSearchMeta && succeeded.length >= 1)
+  const needsSynth = councilMode
+    ? true
+    : (shouldAlwaysSynthesize()
+      ? succeeded.length >= 1
+      : succeeded.length > 1 || (webSearchMeta && succeeded.length >= 1))
 
   if (!needsSynth) {
     finalReply = enforceSearchReply(enrichSearchReply(succeeded[0].reply, webSearchMeta), webSearchMeta)
     finalModel = succeeded[0].model
+  } else if (councilMode && councilTranscript) {
+    const briefing = await runCooBriefing(councilDeps, {
+      userMsg,
+      transcript: councilTranscript,
+      memoryBlock,
+      searchBlock: searchResults,
+      workerHint: workerCtx.offlineHint,
+      emit,
+    })
+    finalReply = enforceSearchReply(enrichSearchReply(briefing.reply, webSearchMeta), webSearchMeta)
+    finalModel = briefing.model
+    emit('synth_done')
   } else {
     emit('synth_start')
     const synthContext = succeeded.map(a => `[${a.icon} ${a.display} · 內部速報]\n${a.reply}`).join('\n\n---\n\n')
@@ -312,11 +400,14 @@ ${succeeded.length === 1 ? '僅一位專家：仍請以營運長口吻完整回�
     reply: replyOut,
     model: finalModel,
     agents: succeeded,
-    orchestrator: { id: 'coach', display: '梅蘭', role: 'coo_synthesis' },
+    orchestrator: { id: 'coach', display: '梅蘭', role: councilMode ? 'coo_chair' : 'coo_synthesis' },
     memories_used: memories.length,
     brain: buildBrainMeta(memories, remembered, writeDecision),
     synthesis: needsSynth,
     workers: workerCtx.summary,
+    ...(councilMeta ? { council: councilMeta } : {}),
+    ...(councilTranscript ? { council_transcript: buildCouncilSummaryForResponse(councilTranscript) } : {}),
+    ...(roster.squad ? { squad: roster.squad, squad_display: roster.squad_display } : {}),
     ...(webSearchMeta ? { web_search: webSearchMeta } : {}),
     ...(codeBlock ? { can_execute: true, execute_code: codeBlock } : {}),
   }

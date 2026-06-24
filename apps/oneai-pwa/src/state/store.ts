@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { ActivityItem, ActivityKind, AgentStatus, Approval, CursorJob, TaskMeta } from '../types'
+import type { ActivityItem, ActivityKind, AgentStatus, Approval, CursorJob, TaskMeta, CouncilLiveState, OrchestrateMode, CouncilMeta, CouncilTranscriptRound } from '../types'
 
 interface PushOpts {
   agentId?: string
@@ -11,6 +11,9 @@ interface PushOpts {
   brainLearned?: boolean
   memoryQuery?: string
   agentDetails?: import('../types').AgentDetail[]
+  councilTranscript?: CouncilTranscriptRound[]
+  councilMeta?: CouncilMeta
+  orchestrateMode?: OrchestrateMode
   taskMeta?: TaskMeta
 }
 
@@ -26,6 +29,8 @@ interface OneAIState {
   memoryHighlight: string | null
   requestedTab: 'chat' | 'agents' | 'memory' | 'settings' | null
   cursorJobs: CursorJob[]
+  orchestrateMode: OrchestrateMode
+  councilLive: CouncilLiveState | null
 
   setStatus: (s: AgentStatus) => void
   setConnected: (c: boolean) => void
@@ -43,6 +48,8 @@ interface OneAIState {
   clearMemoryHighlight: () => void
   upsertCursorJob: (job: CursorJob) => void
   updateCursorJob: (taskId: string, patch: Partial<CursorJob>) => void
+  setOrchestrateMode: (m: OrchestrateMode) => void
+  setCouncilLive: (live: CouncilLiveState | null | ((prev: CouncilLiveState | null) => CouncilLiveState | null)) => void
 }
 
 const uid = () =>
@@ -62,6 +69,8 @@ export const useOneAI = create<OneAIState>()(
       memoryHighlight: null,
       requestedTab: null,
       cursorJobs: [],
+      orchestrateMode: 'idle',
+      councilLive: null,
 
       setStatus: (status) => set({ status }),
       setConnected: (connected) => set({ connected }),
@@ -85,13 +94,16 @@ export const useOneAI = create<OneAIState>()(
               brainLearned: opts?.brainLearned,
               memoryQuery: opts?.memoryQuery,
               agentDetails: opts?.agentDetails,
+              councilTranscript: opts?.councilTranscript,
+              councilMeta: opts?.councilMeta,
+              orchestrateMode: opts?.orchestrateMode,
               taskMeta: opts?.taskMeta,
             },
             ...st.activities,
           ].slice(0, 80),
         })),
 
-      clearActivities: () => set({ activities: [], pendingMessage: null }),
+      clearActivities: () => set({ activities: [], pendingMessage: null, councilLive: null, orchestrateMode: 'idle' }),
 
       addApproval: (a) =>
         set((st) => ({
@@ -126,6 +138,11 @@ export const useOneAI = create<OneAIState>()(
         set((st) => ({
           cursorJobs: st.cursorJobs.map(j => j.taskId === taskId ? { ...j, ...patch } : j),
         })),
+
+      setOrchestrateMode: (orchestrateMode) => set({ orchestrateMode }),
+      setCouncilLive: (live) => set((st) => ({
+        councilLive: typeof live === 'function' ? live(st.councilLive) : live,
+      })),
     }),
     {
       name: 'oneai-state',

@@ -1,8 +1,5 @@
 // OneAI 編排客戶端 — 呼叫 approval-svc /chat/orchestrate（多 Agent 協作）。
-// ⚠️ 安全說明：
-//   VITE_CHAT_TOKEN → ONEAI_CHAT_TOKEN（前端專用低權限 token，只能呼叫 /chat*）
-//   VITE_APPROVAL_TOKEN → 完整 service token，僅用於 /tasks 等高權限端點
-//   兩者請設定不同值（正式環境）
+import type { CouncilMeta, CouncilTranscriptRound, OrchestrateMode } from '../types'
 
 const APPROVAL_BASE = import.meta.env.VITE_APPROVAL_BASE_URL as string | undefined
 const CHAT_TOKEN = (import.meta.env.VITE_CHAT_TOKEN as string | undefined)
@@ -42,6 +39,11 @@ export interface OrchestrateResult {
   synthesis?: boolean
   can_execute?: boolean
   execute_code?: string
+  council?: CouncilMeta
+  council_transcript?: CouncilTranscriptRound[]
+  squad?: string
+  squad_display?: string
+  orchestrator?: { id: string; display: string; role: string }
 }
 
 export type OrchestratePhase =
@@ -50,6 +52,9 @@ export type OrchestratePhase =
   | 'search_start' | 'search_done'
   | 'browser_research_queued'
   | 'agent_done'
+  | 'council_start' | 'council_round' | 'council_agent_done' | 'council_done'
+  | 'coo_briefing_start' | 'coo_briefing_done'
+  | 'staff_done'
   | 'synth_start' | 'synth_done'
   | 'memory_saved' | 'skill_saved'
   | 'done'
@@ -73,10 +78,21 @@ function parseOrchestratePayload(data: Record<string, unknown>): OrchestrateResu
     synthesis: (data.synthesis as boolean) ?? ((data.agents as AgentContrib[])?.length ?? 0) > 1,
     can_execute: (data.can_execute as boolean) ?? false,
     execute_code: data.execute_code as string | undefined,
+    council: data.council as CouncilMeta | undefined,
+    council_transcript: data.council_transcript as CouncilTranscriptRound[] | undefined,
+    squad: data.squad as string | undefined,
+    squad_display: data.squad_display as string | undefined,
+    orchestrator: data.orchestrator as OrchestrateResult['orchestrator'],
   }
 }
 
-/** SSE 串流 orchestrate — 真實思考進度 + 最終結果。 */
+export function resolveOrchestrateMode(result: OrchestrateResult): OrchestrateMode {
+  if (result.council?.mode?.includes('high_stakes')) return 'council_high_stakes'
+  if (result.council) return 'council'
+  if ((result.agents?.length ?? 0) <= 1 && !result.synthesis) return 'fast'
+  return result.synthesis ? 'council' : 'fast'
+}
+
 export async function orchestrateStream(
   text: string,
   history: History = [],
@@ -157,7 +173,6 @@ export async function orchestrateStream(
   return finalResult
 }
 
-/** 透過 Orchestrator 發送訊息，回傳合成回覆 + 參與的 Agent 清單。 */
 export async function orchestrate(text: string, history: History = []): Promise<OrchestrateResult> {
   if (!APPROVAL_BASE) {
     await new Promise((r) => setTimeout(r, 800))

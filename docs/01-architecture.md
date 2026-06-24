@@ -147,7 +147,7 @@ sequenceDiagram
 
 ```
 L1 核心人格（靜態）
-   └─ MENGYI_BRIEF：21 歲、清邁、使命、三爽、5-Why…
+   └─ MENGYI_BRIEF：21 歲、清邁、使命、多贏原則、5-Why…
       永遠注入所有 Agent system prompt
 
 L2 工作記憶（對話 session）

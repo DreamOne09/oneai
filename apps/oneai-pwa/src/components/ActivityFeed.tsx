@@ -26,6 +26,34 @@ function agentColor(id?: string) {
   return AGENT_COLORS[id ?? 'assistant'] ?? defaultColor
 }
 
+function CouncilTranscriptBlock({ transcript, meta }: {
+  transcript: import('../types').CouncilTranscriptRound[]
+  meta?: import('../types').CouncilMeta
+}) {
+  const [open, setOpen] = useState(false)
+  if (!transcript?.length) return null
+  return (
+    <div className="council-transcript">
+      <button type="button" className="msg-expand" onClick={() => setOpen(v => !v)}>
+        {open ? '收合議事錄 ↑' : `🏛️ 議事錄 ${transcript.length} 輪${meta ? ` · ${meta.participants?.length ?? ''} 人` : ''} ↓`}
+      </button>
+      {open && transcript.map(r => (
+        <div key={`${r.round}-${r.phase}`} className="council-transcript-round">
+          <div className="council-transcript-round-title">
+            第 {r.round} 輪 · {r.phase === 'opening' ? '開宗明義' : '交叉辯論'}
+          </div>
+          {r.entries.map(e => (
+            <div key={`${e.agent}-${r.round}`} className="council-transcript-entry">
+              <span className="council-transcript-agent">{e.display}</span>
+              <span className="council-transcript-text">{e.excerpt}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── 單則訊息泡泡 ──────────────────────────────────────────────────────────────
 function MessageBubble({ item }: { item: ActivityItem }) {
   const [expanded, setExpanded] = useState(false)
@@ -70,6 +98,14 @@ function MessageBubble({ item }: { item: ActivityItem }) {
             {item.brainLearned ? (
               <span className="msg-learned">📝 已學習</span>
             ) : null}
+            {item.orchestrateMode && item.orchestrateMode !== 'idle' && (
+              <span className="msg-mode-badge">
+                {item.orchestrateMode === 'fast' ? '⚡快徑'
+                  : item.orchestrateMode === 'staff' ? '👥人事'
+                    : item.orchestrateMode === 'council_high_stakes' ? '🏛️高風險'
+                      : '🏛️議會'}
+              </span>
+            )}
             <span className="msg-time">
               {new Date(item.ts).toLocaleTimeString('zh-Hant', { hour: '2-digit', minute: '2-digit' })}
             </span>
@@ -128,6 +164,10 @@ function MessageBubble({ item }: { item: ActivityItem }) {
               </a>
             ))}
           </div>
+        )}
+
+        {!item.taskMeta && item.councilTranscript && item.councilTranscript.length > 0 && (
+          <CouncilTranscriptBlock transcript={item.councilTranscript} meta={item.councilMeta} />
         )}
 
         {!item.taskMeta && item.agentDetails && item.agentDetails.length > 0 && (

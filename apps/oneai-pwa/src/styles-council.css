@@ -1,0 +1,87 @@
+
+/* ── Council Live / 議會 UI ─────────────────────────────────────────────── */
+.council-live {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  border-radius: 14px;
+  background: rgba(167, 139, 250, 0.08);
+}
+.council-live-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 12px;
+}
+.council-live-mode { font-weight: 700; color: #c4b5fd; }
+.council-live-squad {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(103, 232, 249, 0.12); color: var(--cyan-soft);
+}
+.council-live-phase { color: var(--text); flex: 1; }
+.council-live-rounds { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.council-live-agents {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+}
+.council-agent-chip {
+  font-size: 11px; padding: 3px 8px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+}
+.council-agent-chip--speaking {
+  border-color: rgba(167, 139, 250, 0.6);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.25);
+}
+.council-transcript {
+  margin-top: 8px; padding: 8px 10px; border-radius: 10px;
+  background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06);
+}
+.council-transcript-round { margin-top: 8px; }
+.council-transcript-round-title {
+  font-size: 11px; font-weight: 700; color: #c4b5fd; margin-bottom: 4px;
+}
+.council-transcript-entry { margin-bottom: 6px; }
+.council-transcript-agent { font-size: 11px; font-weight: 600; color: var(--cyan-soft); display: block; }
+.council-transcript-text { font-size: 12px; color: var(--muted); white-space: pre-wrap; }
+.msg-mode-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  background: rgba(167,139,250,0.15); color: #c4b5fd;
+}
+.mode-badge {
+  font-size: 11px; padding: 2px 6px; border-radius: 6px;
+  background: rgba(167,139,250,0.12);
+}
+
+/* ── Office Staff Panel ───────────────────────────────────────────────────── */
+.office-staff { padding: 14px; margin-bottom: 12px; }
+.office-staff-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.office-staff-title { font-size: 15px; font-weight: 700; margin: 0; }
+.office-staff-count {
+  font-size: 12px; font-weight: 700; color: var(--cyan-soft);
+  padding: 2px 10px; border-radius: 999px;
+  background: rgba(103,232,249,0.12);
+}
+.office-staff-hint { font-size: 11px; color: var(--muted); margin: 0 0 12px; line-height: 1.5; }
+.office-staff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.office-staff-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px; border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+}
+.office-staff-card--custom { border-color: rgba(251, 191, 36, 0.25); }
+.office-staff-icon { font-size: 20px; }
+.office-staff-name { font-size: 13px; font-weight: 600; }
+.office-staff-id { font-size: 10px; color: var(--muted); }
+.office-staff-desc { font-size: 10px; color: var(--muted); line-height: 1.4; }
+.office-staff-badge {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 9px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(255,255,255,0.06); color: var(--muted);
+}
+.office-staff-disabled { font-size: 11px; color: var(--muted); margin-top: 10px; }

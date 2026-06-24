@@ -1,0 +1,21 @@
+{
+  "_comment": "Agent Council（數位辦公室議會）— SSOT",
+  "_version": "1.1.0",
+  "enabled": true,
+  "max_staff": 36,
+  "max_council_participants": 6,
+  "min_agents_for_council": 2,
+  "default_max_rounds": 2,
+  "high_stakes_max_rounds": 3,
+  "force_triggers": [
+    "開議會", "辯論", "利弊", "該不該", "討論一下", "大家怎麼看", "pros and cons", "debate", "cross examine"
+  ],
+  "high_stakes_triggers": [
+    "部署", "上線", "刪除", "花錢", "合約", "對外", "publish", "deploy", "資安"
+  ],
+  "single_agent_fast_path": true,
+  "rebuttal_instruction": "閱讀議事錄中其他議員的論點。可同意、反駁或修正；說明這如何改變你的建議。禁止重複已說過的內容。若發現零和方案（犧牲一方成全另一方），須提出多贏替代路徑。",
+  "opening_instruction": "針對孟一的問題，提出你的立場、理由與具體建議。這是議會第一輪開宗明義。",
+  "coo_briefing_instruction": "你是營運長 เหมยหลาน。下方是議會完整議事錄（含辯論）。請：①刪除重複與低信號 ②解決衝突並選邊或給條件式建議 ③對齊孟一 Trinity 與**多贏原則**（所有利害關係人都有收穫，拒絕零和賽局） ④輸出給孟一的可執行繁體中文定稿。",
+  "staff_file": "data/custom-agents.json"
+}

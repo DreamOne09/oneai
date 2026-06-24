@@ -21,9 +21,19 @@ import {
   AGENT_SYSTEMS,
   ROUTING_TRIGGERS,
   RESEARCH_KWS,
-  AVAILABLE_AGENTS,
   detectAgentsFallback,
 } from './agents-config.js'
+import {
+  getAvailableAgentIds,
+  getAgentMeta,
+  getAgentModel,
+  buildAgentSystem,
+  listStaff,
+  addStaffMember,
+  removeStaffMember,
+  updateStaffMember,
+} from './agent-registry.js'
+import { detectAgentsFromRegistry } from './coo-staffing.js'
 
 const app = express()
 app.use(express.json({ limit: '256kb' }))
@@ -458,6 +468,11 @@ function buildOrchestrateDeps() {
     ROUTING_TRIGGERS,
     extractCodeBlock,
     MENGYI_BRIEF,
+    getAvailableAgentIds,
+    getAgentMeta: (id) => getAgentMeta(id) ?? AGENTS_META[id],
+    getAgentModel,
+    getAgentSystem: (id) => buildAgentSystem(id) ?? AGENT_SYSTEMS[id],
+    detectAgentsFallback: detectAgentsFromRegistry,
   }
 }
 
@@ -581,14 +596,14 @@ async function detectAgentsLLM(userMsg, memoryBlock) {
     const raw = r.reply.trim().replace(/```json?|```/g, '').trim()
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return detectAgentsFallback(userMsg)
-    const valid = parsed.filter(id => AVAILABLE_AGENTS.includes(id))
+    const valid = parsed.filter(id => getAvailableAgentIds().includes(id))
     return valid.length > 0 ? valid : []  // 空陣列 = 梅蘭直接回答
   } catch {
-    return detectAgentsFallback(userMsg)
+    return detectAgentsFromRegistry(userMsg)
   }
 }
 
-async function callOpenRouter(model, finalMessages) {
+async function callOpenRouter(model, finalMessages, opts = {}) {
   const upstream = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -597,7 +612,12 @@ async function callOpenRouter(model, finalMessages) {
       'HTTP-Referer': 'https://oneai-mengyi.zeabur.app',
       'X-Title': 'OneAI Personal Assistant',
     },
-    body: JSON.stringify({ model, messages: finalMessages, stream: false, max_tokens: 1024 }),
+    body: JSON.stringify({
+      model,
+      messages: finalMessages,
+      stream: false,
+      max_tokens: opts.max_tokens ?? 1024,
+    }),
   })
   const data = await upstream.json()
   if (!upstream.ok) throw new Error(data.error?.message ?? `HTTP ${upstream.status}`)
@@ -727,6 +747,30 @@ app.post('/agents/heartbeat', requireWorkerToken, (req, res) => {
 
 app.get('/agents/status', (_req, res) => {
   res.json(store.listAgents())
+})
+
+// ── 數位辦公室人事（議員編制 — 營運長增刪改）────────────────────────────────
+app.get('/agents/staff', requireChatToken, (_req, res) => {
+  res.json(listStaff())
+})
+
+app.post('/agents/staff', requireChatToken, (req, res) => {
+  const { id, display, mandate, description, icon, model, routing_keywords } = req.body ?? {}
+  const result = addStaffMember({ id, display, mandate, description, icon, model, routing_keywords })
+  if (!result.ok) return res.status(400).json(result)
+  res.json(result)
+})
+
+app.patch('/agents/staff/:id', requireChatToken, (req, res) => {
+  const result = updateStaffMember(req.params.id, req.body ?? {})
+  if (!result.ok) return res.status(400).json(result)
+  res.json(result)
+})
+
+app.delete('/agents/staff/:id', requireChatToken, (req, res) => {
+  const result = removeStaffMember(req.params.id)
+  if (!result.ok) return res.status(400).json(result)
+  res.json(result)
 })
 
 // ── 數位大腦 API（管家用）───────────────────────────────────────────────────

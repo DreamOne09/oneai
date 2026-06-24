@@ -3,6 +3,8 @@ import Orb from './components/Orb'
 import ActivityFeed from './components/ActivityFeed'
 import ApprovalCard from './components/ApprovalCard'
 import ChatInput from './components/ChatInput'
+import CouncilLiveBar from './components/CouncilLiveBar'
+import OfficeStaffPanel from './components/OfficeStaffPanel'
 import AgentGrid from './components/AgentGrid'
 import AgentPanel from './components/AgentPanel'
 import { BrainPanel } from './components/BrainPanel'
@@ -180,6 +182,7 @@ export default function App() {
           {/* Chat Tab */}
           {tab === 'chat' && (
             <div className="tab-chat">
+              <CouncilLiveBar />
               <div className="tab-chat-feed">
                 <ActivityFeed />
               </div>
@@ -194,6 +197,7 @@ export default function App() {
           {/* Agents Tab */}
           {tab === 'agents' && (
             <div className="tab-scroll">
+              <OfficeStaffPanel />
               <AgentGrid />
             </div>
           )}

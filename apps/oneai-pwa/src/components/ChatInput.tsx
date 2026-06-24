@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { useOneAI } from '../state/store'
-import { orchestrateStream, type AgentContrib, type History, type OrchestrateResult } from '../lib/orchestrate-client'
+import { orchestrateStream, resolveOrchestrateMode, type AgentContrib, type History, type OrchestrateResult, type OrchestratePhaseEvent } from '../lib/orchestrate-client'
+import type { OrchestrateMode } from '../types'
 import { dispatchTask, pollTaskUntilDone } from '../lib/task-client'
 import { CursorPanel, type CursorDispatchPayload } from './CursorPanel'
 import { rememberProject } from '../lib/cursor-projects'
@@ -13,6 +14,13 @@ const PHASE_FALLBACK: Record<string, string> = {
   search_done: '🌐 搜尋完成',
   browser_research_queued: '🖥️ 派發本機 Browser 深度研究…',
   agent_done: '🤖 專家回覆…',
+  council_start: '🏛️ 議會開議…',
+  council_round: '🗣️ 辦公室辯論中…',
+  council_agent_done: '💬 議員發言…',
+  council_done: '🏛️ 辯論回合結束',
+  coo_briefing_start: '🌸 梅蘭篩選定稿…',
+  coo_briefing_done: '🌸 定稿完成',
+  staff_done: '👥 人事異動…',
   synth_start: '✨ 梅蘭整合…',
   synth_done: '✨ 整合完成',
   memory_saved: '📝 寫入記憶…',
@@ -80,6 +88,90 @@ export default function ChatInput() {
   const clearActivities = useOneAI((s) => s.clearActivities)
   const upsertCursorJob = useOneAI((s) => s.upsertCursorJob)
   const updateCursorJob = useOneAI((s) => s.updateCursorJob)
+  const setCouncilLive = useOneAI((s) => s.setCouncilLive)
+  const setOrchestrateMode = useOneAI((s) => s.setOrchestrateMode)
+
+  const handleOrchestratePhase = useCallback((ev: OrchestratePhaseEvent, agentSnapshot: AgentContrib[]) => {
+    const d = ev.data ?? {}
+    const label = ev.label ?? PHASE_FALLBACK[ev.phase] ?? ev.phase
+    if (label) setPending(label)
+
+    if (ev.phase === 'staff_done') {
+      setOrchestrateMode('staff')
+      setCouncilLive(null)
+      return
+    }
+
+    if (ev.phase === 'route_done') {
+      const agents = (d.agents as string[]) ?? []
+      const isCouncil = agents.length >= 2
+      setOrchestrateMode(isCouncil ? 'council' : 'fast')
+      if (!isCouncil) {
+        setCouncilLive(null)
+      } else {
+        setCouncilLive({
+          active: true,
+          mode: 'council',
+          round: 0,
+          maxRounds: 2,
+          phase: 'routing',
+          phaseLabel: d.squad_display ? `${d.squad_display} 編制` : '組編制中',
+          participants: agents.map(id => {
+            const a = agentSnapshot.find(x => x.id === id)
+            return { id, icon: a?.icon ?? '🤖', display: a?.display ?? id }
+          }),
+          squad: d.squad as string | undefined,
+          squadDisplay: d.squad_display as string | undefined,
+        })
+      }
+    }
+
+    if (ev.phase === 'council_start') {
+      const mode = (d.mode as string)?.includes('high_stakes') ? 'council_high_stakes' : 'council'
+      setOrchestrateMode(mode as OrchestrateMode)
+      const ids = (d.agents as string[]) ?? []
+      setCouncilLive({
+        active: true,
+        mode: mode as OrchestrateMode,
+        round: 0,
+        maxRounds: (d.max_rounds as number) ?? 2,
+        phase: 'opening',
+        phaseLabel: '🏛️ 議會開議',
+        participants: ids.map(id => {
+          const a = agentSnapshot.find(x => x.id === id)
+          return { id, icon: a?.icon ?? '🤖', display: a?.display ?? id }
+        }),
+      })
+    }
+
+    if (ev.phase === 'council_round') {
+      setCouncilLive(prev => prev ? {
+        ...prev,
+        active: true,
+        round: (d.round as number) ?? prev.round,
+        maxRounds: (d.max_rounds as number) ?? prev.maxRounds,
+        phase: (d.phase as string) ?? prev.phase,
+        phaseLabel: (d.label as string) ?? label,
+      } : prev)
+    }
+
+    if (ev.phase === 'council_agent_done') {
+      const id = d.id as string
+      setCouncilLive(prev => prev ? { ...prev, lastSpeaker: id } : prev)
+    }
+
+    if (ev.phase === 'council_done' || ev.phase === 'coo_briefing_start') {
+      setCouncilLive(prev => prev ? {
+        ...prev,
+        phase: ev.phase === 'coo_briefing_start' ? 'briefing' : 'done',
+        phaseLabel: ev.phase === 'coo_briefing_start' ? '🌸 梅蘭定稿' : '辯論完成',
+      } : prev)
+    }
+
+    if (ev.phase === 'done' || ev.phase === 'coo_briefing_done' || ev.phase === 'synth_done') {
+      setCouncilLive(prev => prev ? { ...prev, active: false, phaseLabel: '完成' } : null)
+    }
+  }, [setPending, setCouncilLive, setOrchestrateMode])
 
   // 清理 speech recognition on unmount
   useEffect(() => () => { srRef.current?.stop() }, [])
@@ -144,13 +236,15 @@ export default function ChatInput() {
     pushActivity('user', msg, { agentId: 'user', agentIcon: '👤', agentDisplay: '你' })
     setStatus('thinking')
     setPending('🔍 分析意圖…')
+    setCouncilLive(null)
+    setOrchestrateMode('idle')
 
     const history = historyRef.current.slice(-12)
+    const agentSnapshot: AgentContrib[] = []
 
     try {
       const result = await orchestrateStream(msg, history, (ev) => {
-        const label = ev.label ?? PHASE_FALLBACK[ev.phase] ?? ev.phase
-        if (label) setPending(label)
+        handleOrchestratePhase(ev, agentSnapshot)
       })
       historyRef.current = [
         ...history,
@@ -160,6 +254,11 @@ export default function ChatInput() {
       setPending(null)
       setCurrentModel(result.model)
       setStatus('speaking')
+      agentSnapshot.push(...result.agents)
+
+      const mode = resolveOrchestrateMode(result)
+      setOrchestrateMode(mode)
+      setCouncilLive(null)
 
       const memCount = result.brain?.memories_used ?? result.memories_used ?? 0
       const memQuery = result.brain?.memory_preview?.[0]?.slice(0, 80) ?? msg.slice(0, 80)
@@ -200,7 +299,7 @@ export default function ChatInput() {
         pushActivity('memory', '📝 已寫入長期記憶', { brainLearned: true })
       }
 
-      const showSynthesis = result.synthesis || result.agents.length > 1
+      const showSynthesis = result.synthesis || result.agents.length > 1 || !!result.council
 
       if (showSynthesis) {
         pushActivity('result', result.reply, {
@@ -209,7 +308,20 @@ export default function ChatInput() {
           agentDisplay: '梅蘭',
           memoriesUsed: memCount,
           agentDetails: result.agents,
+          councilTranscript: result.council_transcript,
+          councilMeta: result.council,
+          orchestrateMode: mode,
         })
+        if (result.council_transcript?.length) {
+          pushActivity('info', `🏛️ 議會 ${result.council?.rounds ?? ''} 輪辯論 · 可展開議事錄`, {
+            agentId: 'coach',
+            agentIcon: '🏛️',
+            agentDisplay: '議會',
+            councilTranscript: result.council_transcript,
+            councilMeta: result.council,
+            orchestrateMode: mode,
+          })
+        }
       } else {
         const agent: AgentContrib | undefined = result.agents[0]
         pushActivity('result', result.reply, {

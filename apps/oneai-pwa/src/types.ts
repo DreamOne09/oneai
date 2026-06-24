@@ -21,6 +21,39 @@ export interface AgentDetail {
   reply: string
 }
 
+export interface CouncilTranscriptRound {
+  round: number
+  phase: string
+  entries: Array<{
+    agent: string
+    display: string
+    excerpt: string
+  }>
+}
+
+export interface CouncilMeta {
+  mode: string
+  rounds: number
+  max_rounds?: number
+  thread_id: string
+  participants: string[]
+}
+
+export type OrchestrateMode = 'idle' | 'fast' | 'council' | 'council_high_stakes' | 'staff'
+
+export interface CouncilLiveState {
+  active: boolean
+  mode: OrchestrateMode
+  round: number
+  maxRounds: number
+  phase: string
+  phaseLabel?: string
+  participants: Array<{ id: string; icon: string; display: string }>
+  squad?: string
+  squadDisplay?: string
+  lastSpeaker?: string
+}
+
 export interface ActivityItem {
   id: string
   kind: ActivityKind
@@ -34,6 +67,9 @@ export interface ActivityItem {
   brainLearned?: boolean
   memoryQuery?: string
   agentDetails?: AgentDetail[]
+  councilTranscript?: CouncilTranscriptRound[]
+  councilMeta?: CouncilMeta
+  orchestrateMode?: OrchestrateMode
   /** Cursor / 桌機任務卡片（不顯示程式碼） */
   taskMeta?: TaskMeta
 }

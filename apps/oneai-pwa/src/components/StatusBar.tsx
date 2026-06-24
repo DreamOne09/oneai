@@ -26,6 +26,13 @@ export default function StatusBar() {
   const status = useOneAI((s) => s.status)
   const connected = useOneAI((s) => s.connected)
   const model = useOneAI((s) => s.currentModel)
+  const orchestrateMode = useOneAI((s) => s.orchestrateMode)
+
+  const modeBadge = orchestrateMode === 'fast' ? '⚡'
+    : orchestrateMode === 'council' ? '🏛️'
+      : orchestrateMode === 'council_high_stakes' ? '🏛️⚠'
+        : orchestrateMode === 'staff' ? '👥'
+          : null
 
   return (
     <div className="statusbar glass">
@@ -35,6 +42,7 @@ export default function StatusBar() {
       </div>
       <div className="status-meta">
         <span className="status-label">{LABEL[status]}</span>
+        {modeBadge && <span className="mode-badge" title="編排模式">{modeBadge}</span>}
         {model && <span className="model-badge">{shortModel(model)}</span>}
         <span className={connected ? 'link on' : 'link off'}>{connected ? '● 連線' : '○ 離線'}</span>
       </div>
