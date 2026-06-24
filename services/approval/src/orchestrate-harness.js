@@ -6,6 +6,7 @@ import {
   filterMemories,
   isSmallTalk,
   needsExplicitRemember,
+  isSecretMemoryAttempt,
   cleanSearchQuery,
   buildMemoryBlock,
   shouldRemember,
@@ -23,6 +24,13 @@ import {
   memoryWriteDecision,
 } from './brain-intel.js'
 import { needsMemoryCurate } from './memory-curator.js'
+import {
+  needsDeepBrowserResearch,
+  isCursorWorkerOnline,
+  buildBrowserResearchPrompt,
+  buildDeepResearchQueuedReply,
+  buildDeepResearchFallbackNote,
+} from './deep-research.js'
 
 export async function runOrchestrateTurn(deps, input) {
   const {
@@ -48,11 +56,28 @@ export async function runOrchestrateTurn(deps, input) {
     ROUTING_TRIGGERS,
     extractCodeBlock,
     MENGYI_BRIEF,
+    enqueueTask,
+    defaultCursorCwd,
   } = deps
 
   const smallTalk = isSmallTalk(userMsg)
   const explicitRemember = needsExplicitRemember(userMsg)
   const curateIntent = needsMemoryCurate(userMsg)
+
+  if (isSecretMemoryAttempt(userMsg)) {
+    emit('route_done', { agents: ['butler'], secret_denied: true })
+    const reply = '🔒 為安全起見，API 金鑰、密碼、token 不能寫進記憶庫。請放在本機 `.env` 或密碼管理器，並在 Zeabur Dashboard 設定環境變數。'
+    emit('synth_done')
+    return {
+      reply,
+      model: 'butler-guard',
+      agents: [{ id: 'butler', icon: '🫀', display: '管家', reply, model: 'guard' }],
+      memories_used: 0,
+      brain: { memories_used: 0, remembered: false, memory_write: 'secret_denied' },
+      synthesis: false,
+      workers: buildWorkerContext(listWorkers()).summary,
+    }
+  }
 
   const persistIfNeeded = async (reply, agentIds = []) => {
     const writeDecision = memoryWriteDecision(userMsg, { explicitRemember, smallTalk })
@@ -67,7 +92,38 @@ export async function runOrchestrateTurn(deps, input) {
   }
 
   const workerCtx = buildWorkerContext(listWorkers())
-  const workerBlock = workerCtx.block
+  let workerBlock = workerCtx.block
+  let deepResearchFallback = false
+
+  // ①a 本機 Browser 深度研究（Cursor + Browser MCP）
+  if (needsDeepBrowserResearch(userMsg) && enqueueTask) {
+    const agents = listWorkers()
+    if (isCursorWorkerOnline(agents)) {
+      emit('route_done', { agents: ['researcher'], mode: 'browser_deep' })
+      const prompt = buildBrowserResearchPrompt(userMsg)
+      const task = enqueueTask('cursor_agent', {
+        prompt,
+        cwd: defaultCursorCwd ?? null,
+        source: 'browser_deep_research',
+        user_request: userMsg.slice(0, 500),
+      })
+      const reply = buildDeepResearchQueuedReply(task.id, userMsg)
+      emit('browser_research_queued', { task_id: task.id })
+      emit('synth_done')
+      return {
+        reply,
+        model: 'browser-deep-queue',
+        agents: [{ id: 'researcher', icon: '🌐', display: '深度研究', reply, model: 'cursor-browser' }],
+        memories_used: 0,
+        brain: buildBrainMeta([], false, 'skip'),
+        synthesis: false,
+        workers: workerCtx.summary,
+        browser_research: { task_id: task.id, status: 'queued', mode: 'browser' },
+      }
+    }
+    deepResearchFallback = true
+    workerBlock += `\n\n${buildDeepResearchFallbackNote()}`
+  }
 
   // ①b Butler 整理記憶（Phase B）
   if (curateIntent) {
@@ -139,7 +195,11 @@ export async function runOrchestrateTurn(deps, input) {
   emit('rag_done', { count: memories.length, system: systemMemories.length })
 
   const butlerKws = ROUTING_TRIGGERS.butler ?? []
-  const agentIds = mergeAgentRoute(agentIdsFromLLM, userMsg, RESEARCH_KWS, butlerKws)
+  let agentIds = mergeAgentRoute(agentIdsFromLLM, userMsg, RESEARCH_KWS, butlerKws)
+  if (deepResearchFallback && !agentIds.includes('researcher')) {
+    agentIds = ['researcher', ...agentIds]
+  }
+  agentIds = [...new Set(agentIds)].slice(0, 3)
   emit('route_done', { agents: agentIds.length ? agentIds : ['coach'] })
 
   // ③ 梅蘭直答
@@ -231,6 +291,11 @@ export async function runOrchestrateTurn(deps, input) {
 
   const { remembered, writeDecision } = await persistIfNeeded(finalReply, agentIds)
 
+  let replyOut = finalReply
+  if (deepResearchFallback && !String(replyOut).includes('Cursor worker 離線')) {
+    replyOut = buildDeepResearchFallbackNote() + replyOut
+  }
+
   // Skill 自動生成（engineer 參與且回覆含程式）
   const engineerAgent = succeeded.find(a => a.id === 'engineer')
   const codeBlock = engineerAgent ? extractCodeBlock(engineerAgent.reply) : null
@@ -241,7 +306,7 @@ export async function runOrchestrateTurn(deps, input) {
   }
 
   return {
-    reply: finalReply,
+    reply: replyOut,
     model: finalModel,
     agents: succeeded,
     memories_used: memories.length,

@@ -22,6 +22,7 @@
     ],
     "dedup_score": 0.95,
     "max_fact_chars": 220,
+    "deny_secrets": ["api_key", "api key", "apikey", "secret", "password", "密碼", "token", "private_key", "sk-or-", "sk-", "cursor_"],
     "kinds": {
       "explicit_or_fact": "preference",
       "manual": "memory",

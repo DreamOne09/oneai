@@ -1,0 +1,23 @@
+{
+  "_comment": "OneAI 研究路由 SSOT — 雲端快速搜尋 vs 本機 Browser 深度研究",
+  "_version": "1.0.0",
+
+  "quick_search": {
+    "provider_chain": ["tavily", "serpapi", "duckduckgo"],
+    "comment": "approval-svc webSearch()；Researcher Agent 預設路徑"
+  },
+
+  "browser_deep": {
+    "trigger_phrases": [
+      "深度研究", "深度調查", "深度分析", "完整閱讀", "讀完整", "讀完這篇",
+      "打開這個網址", "打開這頁", "開這個連結", "瀏覽器查", "browser",
+      "驗證網頁", "實際打開", "deep research", "read this page"
+    ],
+    "url_intent_phrases": [
+      "打開", "開啟", "讀", "閱讀", "摘要", "分析", "研究", "調查", "verify", "open"
+    ],
+    "cursor_mode": "browser_research",
+    "worker_agent_id": "personal/cursor-worker",
+    "fallback": "tavily"
+  }
+}

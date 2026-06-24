@@ -187,6 +187,22 @@ git push origin master
 
 ---
 
+## 6.5 研究路由：Tavily vs 本機 Browser
+
+| 意圖 | 路徑 | 條件 |
+|------|------|------|
+| **快速搜尋**（「搜尋 XXX」） | 雲端 Tavily → Researcher | 24/7，手機可用 |
+| **深度研究**（「深度研究」「打開 URL 讀完整」） | `cursor_agent` + Cursor Browser | 需 `cursor_worker` 在線 |
+| worker 離線 | 降級 Tavily + 提示 | 自動 |
+
+設定 SSOT：`config/oneai.research.json`  
+觸發範例：
+
+- `深度研究 Zeabur 定價`
+- `打開 https://example.com/docs 讀完整再摘要`
+
+---
+
 ## 7. 相關文件
 
 | 文件 | 內容 |

@@ -12,6 +12,7 @@ import { runOrchestrateTurn } from './orchestrate-harness.js'
 import { getRagBaseUrl } from './rag-host.js'
 import { seedSystemMemoryIfNeeded } from './system-memory.js'
 import { buildMemoryGraph } from './brain-graph.js'
+import { logExternalAction, markActionDoneForTask } from './action-log.js'
 import {
   AGENTS_CONFIG,
   MENGYI_BRIEF,
@@ -234,6 +235,10 @@ app.post('/tasks', requireServiceToken, (req, res) => {
     return res.status(400).json({ error: 'type 無效或缺 payload', valid: VALID_TASK_TYPES })
   }
   const id = randomUUID()
+  logExternalAction('task_enqueue', {
+    key: `${type}:${JSON.stringify(payload).slice(0, 80)}`,
+    task_type: type,
+  })
   store.addTask({ id, type, payload, status: 'queued', createdAt: Date.now() })
   res.status(202).json({ task_id: id, status: 'queued', poll: `/tasks/${id}` })
 })
@@ -264,9 +269,19 @@ app.get('/tasks/next', requireWorkerToken, (req, res) => {
 })
 
 // 本機 worker 回報任務結果(需 worker token)
-app.post('/tasks/:id/result', requireWorkerToken, (req, res) => {
-  const ok = store.setTaskResult(req.params.id, req.body ?? {})
+app.post('/tasks/:id/result', requireWorkerToken, async (req, res) => {
+  const body = req.body ?? {}
+  const task = store.getTask(req.params.id)
+  const ok = store.setTaskResult(req.params.id, body)
   if (!ok) return res.status(404).json({ error: '未知 task id' })
+  markActionDoneForTask(req.params.id, { status: body.status })
+  const status = body.status === 'error' || body.status === 'rejected' ? body.status : 'done'
+  const title = status === 'done' ? '✅ 本機任務完成' : '⚠️ 本機任務失敗'
+  const preview = String(body.summary ?? body.output ?? '').slice(0, 120)
+  const taskLabel = task?.type === 'cursor_agent' ? 'Cursor' : task?.type ?? 'task'
+  try {
+    sendPush({ title, body: `${taskLabel} · ${preview || req.params.id.slice(0, 8)}` })
+  } catch { /* push optional */ }
   res.json({ ok: true })
 })
 
@@ -369,6 +384,20 @@ async function webSearchCached(query, maxResults = 5) {
   return data
 }
 
+function enqueueTask(type, payload) {
+  const dedup = logExternalAction('task_enqueue', {
+    key: `${type}:${payload?.source ?? ''}:${String(payload?.prompt ?? payload?.cmd ?? '').slice(0, 80)}`,
+    task_type: type,
+  })
+  if (dedup.duplicate) {
+    return { id: dedup.id, status: 'duplicate', poll: null, duplicate: true }
+  }
+  const id = randomUUID()
+  logExternalAction('task_created', { key: id, task_id: id, task_type: type })
+  store.addTask({ id, type, payload, status: 'queued', createdAt: Date.now() })
+  return { id, status: 'queued', poll: `/tasks/${id}` }
+}
+
 function buildOrchestrateDeps() {
   return {
     ragQuery,
@@ -378,6 +407,8 @@ function buildOrchestrateDeps() {
     detectAgentsLLM,
     callOpenRouter,
     listWorkers: () => store.listAgents(),
+    enqueueTask,
+    defaultCursorCwd: process.env.CURSOR_AGENT_CWD || null,
     AGENT_SYSTEMS,
     AGENTS_META,
     AGENTS_CONFIG,

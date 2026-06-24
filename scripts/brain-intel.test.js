@@ -17,6 +17,7 @@ import {
   needsSystemKnowledge,
   filterSystemMemories,
   buildSystemKnowledgeBlock,
+  isSecretMemoryAttempt,
   RECALL_MEMORY_SCORE,
   MIN_MEMORY_SCORE,
   SYSTEM_MEMORY_SCORE,
@@ -105,6 +106,9 @@ assert(
 const sysRaw = [{ text: 'agy 與 cursor 平行輪詢', score: 0.22 }]
 assert(filterSystemMemories(sysRaw).length === 1, 'system memory filter')
 assert(buildSystemKnowledgeBlock(sysRaw).includes('kind=system'), 'system block label')
+
+assert(!shouldRemember('記住：我的 OPENAI_API_KEY 是 sk-test', '', { explicitRemember: true, smallTalk: false }), 'deny secret memory')
+assert(isSecretMemoryAttempt('記住：API key sk-or-v1-abc'), 'secret attempt detect')
 
 console.log(`\nbrain-intel: ${passed} passed, ${failed} failed`)
 process.exit(failed > 0 ? 1 : 0)

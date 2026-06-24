@@ -38,6 +38,7 @@ export interface OrchestrateResult {
   memories_used?: number
   brain?: BrainMeta
   web_search?: WebSearchMeta
+  browser_research?: { task_id: string; status: string; mode: string }
   synthesis?: boolean
   can_execute?: boolean
   execute_code?: string
@@ -47,6 +48,7 @@ export type OrchestratePhase =
   | 'rag_start' | 'rag_done'
   | 'route_done'
   | 'search_start' | 'search_done'
+  | 'browser_research_queued'
   | 'agent_done'
   | 'synth_start' | 'synth_done'
   | 'memory_saved' | 'skill_saved'
@@ -67,6 +69,7 @@ function parseOrchestratePayload(data: Record<string, unknown>): OrchestrateResu
     memories_used: (data.memories_used as number) ?? (data.brain as BrainMeta)?.memories_used ?? 0,
     brain: data.brain as BrainMeta | undefined,
     web_search: data.web_search as WebSearchMeta | undefined,
+    browser_research: data.browser_research as OrchestrateResult['browser_research'],
     synthesis: (data.synthesis as boolean) ?? ((data.agents as AgentContrib[])?.length ?? 0) > 1,
     can_execute: (data.can_execute as boolean) ?? false,
     execute_code: data.execute_code as string | undefined,

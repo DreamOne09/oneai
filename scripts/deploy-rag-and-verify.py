@@ -34,6 +34,37 @@ def load_dotenv() -> None:
             os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
+def diagnose_rag_via_approval(approval: str) -> dict:
+    """透過 approval 公開端點判斷 rag 是否為新映像（含 /stats /catalog）。"""
+    out = {'new_rag': False, 'summary_ok': False, 'by_kind': None, 'total': None, 'hint': ''}
+    try:
+        st, d = fetch_json(f'{approval}/brain/summary', timeout=12)
+        out['summary_ok'] = st == 200 and d.get('status') == 'ok'
+        out['total'] = d.get('total_memories')
+        out['by_kind'] = d.get('by_kind')
+        if out['by_kind'] is not None:
+            out['new_rag'] = True
+            return out
+    except Exception as ex:
+        out['hint'] = str(ex)[:120]
+        return out
+    out['hint'] = (
+        'rag-svc 仍是舊映像（無 /stats）→ /brain/graph、/brain/curate 會 502。'
+        ' approval 已更新，但 rag 需手動 redeploy（DEP-04）。'
+    )
+    return out
+
+
+def print_deploy_blockers() -> None:
+    if os.environ.get('ZEABUR_TOKEN'):
+        return
+    print('\n[BLOCKER] .env 缺少 ZEABUR_TOKEN')
+    print('  1. 開 https://dash.zeabur.com/account/general → API → Create token')
+    print('  2. 在 .env 加一行：ZEABUR_TOKEN=你的token')
+    print('  3. 再跑：python scripts\\deploy-rag-and-verify.py')
+    print('  或 Dashboard → oneai → rag-svc → Redeploy（不需 CLI token）')
+
+
 def fetch_json(url: str, *, method='GET', body=None, token=None, timeout=20):
     headers = {'Content-Type': 'application/json'}
     if token:
@@ -83,12 +114,17 @@ def main() -> int:
     parser.add_argument('--wait-sec', type=int, default=300)
     args = parser.parse_args()
 
-    if not os.environ.get('ZEABUR_TOKEN') and not args.skip_deploy:
-        print('[ERROR] 缺少 ZEABUR_TOKEN — 請寫入 .env 或使用 --skip-deploy')
-        return 1
-
     approval = os.environ.get('APPROVAL_BASE_URL', 'https://oneai-approval.zeabur.app').rstrip('/')
     token = os.environ.get('ONEAI_CHAT_TOKEN') or os.environ.get('APPROVAL_TOKEN', '')
+
+    if not os.environ.get('ZEABUR_TOKEN') and not args.skip_deploy:
+        print('[ERROR] 缺少 ZEABUR_TOKEN — 無法 redeploy rag-svc')
+        print_deploy_blockers()
+        diag = diagnose_rag_via_approval(approval)
+        if not diag['new_rag']:
+            print(f"\n[DIAG] summary total={diag['total']} by_kind={diag['by_kind']}")
+            print(f"       {diag['hint']}")
+        return 1
 
     if not args.skip_deploy:
         print('=== 1/5 Zeabur redeploy rag-svc ===')
@@ -117,12 +153,20 @@ def main() -> int:
             print('[WARN] 未確認新 /stats — 可能 approval 尚未 deploy 或 rag 仍在 build')
     else:
         print('=== skip deploy ===')
+        diag = diagnose_rag_via_approval(approval)
+        print(f"[DIAG] summary total={diag['total']} by_kind={diag['by_kind']}")
+        if not diag['new_rag']:
+            print(f"[DIAG] {diag['hint']}")
+            print_deploy_blockers()
 
     print('=== 3/5 brain-smoke ===')
     subprocess.run([sys.executable, str(ROOT / 'scripts' / 'brain-smoke.py')], cwd=str(ROOT))
 
     print('=== 4/5 graph + seed ===')
-    subprocess.run([sys.executable, str(ROOT / 'scripts' / 'test-brain-graph-cloud.py')], cwd=str(ROOT))
+    graph_ok = subprocess.run(
+        [sys.executable, str(ROOT / 'scripts' / 'test-brain-graph-cloud.py')],
+        cwd=str(ROOT),
+    ).returncode == 0
     subprocess.run([sys.executable, str(ROOT / 'scripts' / 'seed-system-memory.py')], cwd=str(ROOT))
 
     print('=== 5/5 memory curate ===')
@@ -143,6 +187,13 @@ def main() -> int:
 
     print('\n[DONE] deploy-rag-and-verify 完成')
     print('提醒：Zeabur Dashboard 請確認 rag-svc 已掛 Volume 到 Chroma 目錄（DEP-04）')
+
+    diag = diagnose_rag_via_approval(approval)
+    if not diag['new_rag'] or not graph_ok:
+        print('\n[FAIL] rag-svc 尚未升級到新映像 — graph/curate 不可用')
+        if not diag['new_rag']:
+            print_deploy_blockers()
+        return 1
     return 0
 
 

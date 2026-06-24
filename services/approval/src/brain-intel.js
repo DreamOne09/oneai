@@ -21,6 +21,10 @@ const FACT_SIGNALS = MEMORY_WRITE.fact_signals ?? [
   '偏好', '習慣', '決定', 'deadline', '截止', '行程', '出差', '會議', '電話', '地址', 'email',
 ]
 const SKIP_ONLY = MEMORY_WRITE.skip_if_only ?? ['搜尋', '搜索', 'search', '分析：', '怎麼看', '建議']
+const SECRET_DENY = MEMORY_WRITE.deny_secrets ?? [
+  'api_key', 'api key', 'apikey', 'secret', 'password', '密碼', 'token', 'private_key', 'sk-or-', 'sk-', 'cursor_',
+]
+const SECRET_RE = new RegExp(SECRET_DENY.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
 
 const SMALL_TALK_RE = /^(嗨|你好|哈囉|hello|hi|hey|早|晚安|午安|谢谢|謝謝|thanks|ok|好的|收到|在嗎|在吗|test)[\s!?.，。~～]*$/i
 const REMEMBER_RE = new RegExp(EXPLICIT_TRIGGERS.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
@@ -78,6 +82,13 @@ export function isSmallTalk(text) {
 
 export function needsExplicitRemember(text) {
   return REMEMBER_RE.test(String(text ?? ''))
+}
+
+/** 使用者試圖把金鑰/密碼寫進記憶 — 必須拒絕（#68） */
+export function isSecretMemoryAttempt(text) {
+  const t = String(text ?? '')
+  if (!needsExplicitRemember(t)) return false
+  return SECRET_RE.test(t) || /sk-[a-z0-9]{10,}/i.test(t)
 }
 
 export function needsRecall(text) {
@@ -175,6 +186,7 @@ export function buildSystemKnowledgeBlock(systemMemories) {
 }
 
 export function shouldRemember(userMsg, reply, { explicitRemember, smallTalk }) {
+  if (isSecretMemoryAttempt(userMsg)) return false
   if (smallTalk) return false
   if (needsSystemKnowledge(userMsg) && !explicitRemember) return false
   if (explicitRemember) return true
@@ -278,6 +290,7 @@ export const PHASE_LABELS = {
   route_done: '🔍 路由決策完成',
   search_start: '🌐 搜尋最新資料…',
   search_done: '🌐 搜尋完成',
+  browser_research_queued: '🖥️ 已派發本機 Browser 深度研究…',
   agent_done: '🤖 專家回覆完成',
   synth_start: '✨ 梅蘭整合中…',
   synth_done: '✨ 整合完成',

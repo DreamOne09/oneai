@@ -11,6 +11,7 @@ const PHASE_FALLBACK: Record<string, string> = {
   route_done: '🔍 路由決策…',
   search_start: '🌐 搜尋最新資料…',
   search_done: '🌐 搜尋完成',
+  browser_research_queued: '🖥️ 派發本機 Browser 深度研究…',
   agent_done: '🤖 專家回覆…',
   synth_start: '✨ 梅蘭整合…',
   synth_done: '✨ 整合完成',
@@ -20,6 +21,7 @@ const PHASE_FALLBACK: Record<string, string> = {
 
 const QUICK_CHIPS = [
   { label: '🌐 搜尋', hint: '搜尋 ' },
+  { label: '🔬 深度', hint: '深度研究 ' },
   { label: '🧠 記憶', hint: '你還記得什麼關於 ' },
   { label: '📊 分析', hint: '分析 ' },
   { label: '💻 寫程式', hint: '幫我寫 ' },
@@ -174,6 +176,23 @@ export default function ChatInput() {
         pushActivity('search', `🌐 已搜尋「${ws.query}」(${prov} · ${ws.result_count} 筆)`, {
           agentId: 'researcher', agentIcon: '🔍', agentDisplay: '研究員',
           searchSources: ws.sources?.slice(0, 5),
+        })
+      }
+
+      if (result.browser_research?.task_id) {
+        const tid = result.browser_research.task_id
+        const taskMeta = {
+          taskId: tid,
+          projectPath: '',
+          projectName: 'Browser 深度研究',
+          summary: msg.slice(0, 120),
+          status: 'queued' as const,
+          worker: 'cursor' as const,
+        }
+        upsertCursorJob({ ...taskMeta, ts: Date.now() })
+        pushActivity('task', `🌐 Browser 深度研究 · ${tid.slice(0, 8)}…`, {
+          agentId: 'researcher', agentIcon: '🌐', agentDisplay: '深度研究',
+          taskMeta,
         })
       }
 

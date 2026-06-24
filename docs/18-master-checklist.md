@@ -267,8 +267,11 @@ python scripts\human-loop-sim.py
 
 ## 6. 勾選記錄
 
+> **2.0 一日衝刺**：依 [20-oneai-2.0-day-plan.md](20-oneai-2.0-day-plan.md) 區塊 A–H 依序執行；GTX 跑 `python scripts/oneai-gtx-100.py`。
+
 | 日期 | 誰做 | 完成 ID | 備註 |
 |------|------|---------|------|
+| 2026-06-24 | AI | doc-20 GTX-100 | 100 情境 + 一日計畫 + gtx 腳本 |
 | 2026-06-23 | AI | DEP-01~08, CLN-*, ARC-*, G-01, I-01 | push + 雲端 deploy |
 | 2026-06-23 | AI | WRK-04/05, memory recall 程式 | agents-config、harness |
 | 2026-06-23 | AI | TST-01（10/10） | recall score fix `454765a` + 代跑 worker |
