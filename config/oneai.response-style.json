@@ -1,0 +1,10 @@
+{
+  "_comment": "回應風格 SSOT — 梅蘭統籌，子 Agent 精簡速報",
+  "_version": "1.0.0",
+  "orchestrator_id": "coach",
+  "orchestrator_style": "meilan",
+  "sub_agent_style": "caveman_full_zh",
+  "synthesis_style": "meilan",
+  "always_synthesize": true,
+  "caveman_skip_agents": ["coach"]
+}

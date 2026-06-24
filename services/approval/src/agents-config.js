@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { subAgentStyleBlock } from './caveman-style.js'
 
 function loadJson(relativePath) {
   try {
@@ -129,7 +130,8 @@ function buildAgentSystems(config) {
   for (const [id, cfg] of Object.entries(config.agents ?? {})) {
     if (id === 'orchestrator' || id.includes('/')) continue
     const role = AGENT_ROLE_PROMPTS[id] ?? cfg.description ?? `你是孟一的 ${cfg.display ?? id}。`
-    systems[id] = `${MENGYI_BRIEF}\n${ONEAI_SYSTEM_ARCHITECTURE}\n${role}`
+    const caveman = subAgentStyleBlock(id)
+    systems[id] = `${MENGYI_BRIEF}\n${ONEAI_SYSTEM_ARCHITECTURE}\n${role}${caveman}`
   }
   return systems
 }

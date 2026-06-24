@@ -31,6 +31,7 @@ import {
   buildDeepResearchQueuedReply,
   buildDeepResearchFallbackNote,
 } from './deep-research.js'
+import { MEILAN_SYNTHESIS_BRIEF, shouldAlwaysSynthesize } from './caveman-style.js'
 
 export async function runOrchestrateTurn(deps, input) {
   const {
@@ -266,19 +267,21 @@ export async function runOrchestrateTurn(deps, input) {
   const succeeded = subResults.filter(r => r.status === 'fulfilled').map(r => r.value)
   if (!succeeded.length) throw new Error('所有子 Agent 失敗')
 
-  // ⑥ 合成
+  // ⑥ 合成 — 有子 Agent 時由梅蘭（coach）統整對外回覆；子 Agent 內部為 Caveman 速報
   let finalReply
   let finalModel
-  const needsSynth = succeeded.length > 1 || (webSearchMeta && succeeded.length >= 1)
+  const needsSynth = shouldAlwaysSynthesize()
+    ? succeeded.length >= 1
+    : succeeded.length > 1 || (webSearchMeta && succeeded.length >= 1)
 
   if (!needsSynth) {
     finalReply = enforceSearchReply(enrichSearchReply(succeeded[0].reply, webSearchMeta), webSearchMeta)
     finalModel = succeeded[0].model
   } else {
     emit('synth_start')
-    const synthContext = succeeded.map(a => `[${a.icon} ${a.display}]\n${a.reply}`).join('\n\n---\n\n')
-    const synthSystem = `${AGENT_SYSTEMS.coach}${memoryBlock}${searchResults}
-作為孟一的營運長，整合專家意見，用嚴格直率的繁體中文給最終建議。
+    const synthContext = succeeded.map(a => `[${a.icon} ${a.display} · 內部速報]\n${a.reply}`).join('\n\n---\n\n')
+    const synthSystem = `${AGENT_SYSTEMS.coach}${memoryBlock}${searchResults}${MEILAN_SYNTHESIS_BRIEF}
+${succeeded.length === 1 ? '僅一位專家：仍請以營運長口吻完整回覆孟一，不要只轉貼速報。' : '整合多位專家意見。'}
 若含搜尋：必須列出至少 3 個關鍵發現，每項附來源標題。${workerCtx.offlineHint}`
     const synth = await callOpenRouter(CHAT_DEFAULT_MODEL, [
       { role: 'system', content: synthSystem },
@@ -309,6 +312,7 @@ export async function runOrchestrateTurn(deps, input) {
     reply: replyOut,
     model: finalModel,
     agents: succeeded,
+    orchestrator: { id: 'coach', display: '梅蘭', role: 'coo_synthesis' },
     memories_used: memories.length,
     brain: buildBrainMeta(memories, remembered, writeDecision),
     synthesis: needsSynth,
