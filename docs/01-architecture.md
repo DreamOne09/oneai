@@ -232,7 +232,7 @@ L3 長期記憶（跨 session 累積）
 
 1. **API key 不出伺服器** — PWA 只帶 `VITE_APPROVAL_TOKEN`，OpenRouter key 存 `approval-svc`
 2. **反向輪詢** — 本機不開 port，NAT 穿透零設定，最安全
-3. **記憶自動累積** — 每次對話後 `/remember` 非同步存入，不影響回應速度
+3. **記憶選擇性累積** — 僅 fact/顯式記住寫 RAG；注入最多 2~4 條高相關片段（見 `oneai.memory.json`）
 4. **Fallback chain** — 主模型失敗自動嘗試備用模型，確保不中斷
 5. **SSOT 設定** — `config/oneai.agents.json` + `config/oneai.models.json` 是所有設定的唯一來源
 6. **SW skipWaiting** — 新版 PWA 部署後手機立即接管，不需手動清快取

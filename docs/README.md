@@ -80,6 +80,7 @@ hands/antigravity/        本機 worker + agy
 hands/cursor-agent/       Cursor SDK worker
 bridge/mcp-core/          MCP 工具（LibreChat / Cursor 用）
 config/oneai.agents.json  Agent 路由 SSOT
+config/oneai.memory.json  記憶寫入/注入政策 SSOT
 config/oneai.system-architecture.json  架構 SSOT（注入 Agent prompt）
 config/oneai.models.json  模型 SSOT
 scripts/brain-smoke.py    雲端煙霧測試

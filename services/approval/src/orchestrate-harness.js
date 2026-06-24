@@ -20,6 +20,7 @@ import {
   filterSystemMemories,
   buildSystemKnowledgeBlock,
   classifyMemoryKind,
+  memoryWriteDecision,
 } from './brain-intel.js'
 
 export async function runOrchestrateTurn(deps, input) {
@@ -51,14 +52,15 @@ export async function runOrchestrateTurn(deps, input) {
   const explicitRemember = needsExplicitRemember(userMsg)
 
   const persistIfNeeded = async (reply, agentIds = []) => {
-    const remembered = shouldRemember(userMsg, reply, { explicitRemember, smallTalk })
+    const writeDecision = memoryWriteDecision(userMsg, { explicitRemember, smallTalk })
+    const remembered = writeDecision !== 'skip'
     if (remembered) {
       const p = formatRememberPayload(userMsg, reply, explicitRemember)
       const kind = classifyMemoryKind(userMsg, explicitRemember)
       await ragRememberSmart(p.text, p.title, kind)
-      emit('memory_saved', { kind })
+      emit('memory_saved', { kind, write: writeDecision })
     }
-    return remembered
+    return { remembered, writeDecision }
   }
 
   const workerCtx = buildWorkerContext(listWorkers())
@@ -118,14 +120,14 @@ export async function runOrchestrateTurn(deps, input) {
       { role: 'system', content: AGENT_SYSTEMS.coach + memoryBlock },
       ...messages,
     ])
-    const remembered = await persistIfNeeded(r.reply, [])
+    const { remembered, writeDecision } = await persistIfNeeded(r.reply, [])
     emit('synth_done')
     return {
       reply: r.reply,
       model: r.model,
       agents: [{ id: 'coach', icon: '🌸', display: '梅蘭', reply: r.reply, model: r.model }],
       memories_used: memories.length,
-      brain: buildBrainMeta(memories, remembered),
+      brain: buildBrainMeta(memories, remembered, writeDecision),
       synthesis: false,
       workers: workerCtx.summary,
     }
@@ -199,7 +201,7 @@ export async function runOrchestrateTurn(deps, input) {
     emit('synth_done')
   }
 
-  const remembered = await persistIfNeeded(finalReply, agentIds)
+  const { remembered, writeDecision } = await persistIfNeeded(finalReply, agentIds)
 
   // Skill 自動生成（engineer 參與且回覆含程式）
   const engineerAgent = succeeded.find(a => a.id === 'engineer')
@@ -215,7 +217,7 @@ export async function runOrchestrateTurn(deps, input) {
     model: finalModel,
     agents: succeeded,
     memories_used: memories.length,
-    brain: buildBrainMeta(memories, remembered),
+    brain: buildBrainMeta(memories, remembered, writeDecision),
     synthesis: needsSynth,
     workers: workerCtx.summary,
     ...(webSearchMeta ? { web_search: webSearchMeta } : {}),

@@ -1,18 +1,33 @@
 /** 數位大腦智慧層 — 記憶過濾、路由輔助、選擇性寫回 */
 
-export const MIN_MEMORY_SCORE = 0.6
+import { MEMORY_WRITE, MEMORY_INJECT } from './memory-config.js'
+
+export const MIN_MEMORY_SCORE = MEMORY_INJECT.min_score ?? 0.6
 /** 召回意圖時語意距離較大，門檻需低於一般注入 */
-export const RECALL_MEMORY_SCORE = 0.2
-/** 系統知識（kind=system）注入門檻 — 架構查詢 paraphrase 較多 */
-export const SYSTEM_MEMORY_SCORE = 0.18
-export const DEDUP_SCORE = 0.95
+export const RECALL_MEMORY_SCORE = MEMORY_INJECT.recall_min_score ?? 0.2
+/** 系統知識（kind=system）注入門檻 */
+export const SYSTEM_MEMORY_SCORE = MEMORY_INJECT.system_min_score ?? 0.18
+export const DEDUP_SCORE = MEMORY_WRITE.dedup_score ?? 0.95
+const MAX_INJECT_NORMAL = MEMORY_INJECT.max_normal ?? 2
+const MAX_INJECT_RECALL = MEMORY_INJECT.max_recall ?? 4
+const MAX_INJECT_SYSTEM = MEMORY_INJECT.max_system ?? 2
+const MAX_FACT_CHARS = MEMORY_WRITE.max_fact_chars ?? 220
+
+const EXPLICIT_TRIGGERS = MEMORY_WRITE.explicit_triggers ?? [
+  '記住', '幫我記', '帮我记', '別忘了', '别忘了', '不要忘记', '写进记忆', '寫進記憶', 'remember this',
+]
+const FACT_SIGNALS = MEMORY_WRITE.fact_signals ?? [
+  '偏好', '習慣', '決定', 'deadline', '截止', '行程', '出差', '會議', '電話', '地址', 'email',
+]
+const SKIP_ONLY = MEMORY_WRITE.skip_if_only ?? ['搜尋', '搜索', 'search', '分析：', '怎麼看', '建議']
 
 const SMALL_TALK_RE = /^(嗨|你好|哈囉|hello|hi|hey|早|晚安|午安|谢谢|謝謝|thanks|ok|好的|收到|在嗎|在吗|test)[\s!?.，。~～]*$/i
-const REMEMBER_RE = /記住|幫我記|帮我记|別忘了|别忘了|不要忘记|写进记忆|寫進記憶|remember this/i
+const REMEMBER_RE = new RegExp(EXPLICIT_TRIGGERS.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
+const FACT_RE = new RegExp([...FACT_SIGNALS, '記住', '出差', 'email', '@'].join('|'), 'i')
+const SKIP_AUTO_RE = new RegExp(SKIP_ONLY.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
 const RECALL_RE = /還記得|还记得|你記得|你记得|你知道我|腦中|脑中|記憶庫|记忆库|之前說|之前说|我說過|我说过/
 const SYSTEM_KNOWLEDGE_RE = /oneai|架構|系统架构|系統架構|worker\.py|cursor_worker|cursor worker|agy|zeabur|部署方式|rag-svc|approval-svc|任務佇列|佇列|怎麼跑|怎麼運|怎么运|本機.*worker|送到 cursor|shell.*agent|github.*push|INSTALL-WORKER/i
 const SEARCH_PREFIX_RE = /^(請|帮我|幫我|请)?(搜尋|搜索|查一下|查詢|找一下|查查|search|google|幫我找|帮我找)\s*/i
-const FACT_RE = /記住|出差|行程|偏好|deadline|截止|會議|電話|地址|email|@[\w.-]+/i
 
 export function memoryToText(m) {
   if (typeof m === 'string') return m
@@ -36,7 +51,7 @@ export function filterMemories(raw, userMsg) {
     return true
   })
   if (isSmallTalk(userMsg) && !recall) return []
-  const out = rows.slice(0, recall ? 5 : 3)
+  const out = rows.slice(0, recall ? MAX_INJECT_RECALL : MAX_INJECT_NORMAL)
   // 召回意圖但全被 score 濾掉時，保留最佳 1~2 筆（避免 paraphrase 查詢 mem=0）
   if (recall && out.length === 0 && (raw ?? []).length > 0) {
     const fallback = (raw ?? [])
@@ -53,6 +68,8 @@ export function filterMemories(raw, userMsg) {
 
 export function isSmallTalk(text) {
   const t = String(text ?? '').trim()
+  if (needsExplicitRemember(t)) return false
+  if (hasDurableFactSignal(t)) return false
   if (t.length <= 18 && SMALL_TALK_RE.test(t)) return true
   if (t.length <= 8) return true
   return false
@@ -78,7 +95,34 @@ export function filterSystemMemories(raw) {
       const s = memoryScore(m)
       return s === 0 || s >= SYSTEM_MEMORY_SCORE
     })
-    .slice(0, 3)
+    .slice(0, MAX_INJECT_SYSTEM)
+}
+
+/** 訊息是否含可長期保存的事實信號（非整段對話） */
+export function hasDurableFactSignal(text) {
+  const t = String(text ?? '').trim()
+  if (!t) return false
+  if (needsExplicitRemember(t)) return true
+  return FACT_RE.test(t)
+}
+
+/** 純探索型問題 — 不應 auto-write（搜尋/分析/寒暄） */
+export function isEphemeralQuery(text) {
+  const t = String(text ?? '').trim()
+  if (isSmallTalk(t)) return true
+  if (SEARCH_PREFIX_RE.test(t)) return true
+  if (SKIP_AUTO_RE.test(t) && !hasDurableFactSignal(t)) return true
+  return false
+}
+
+/** 從使用者訊息萃取一行事實（不存 assistant 長回覆） */
+export function extractMemoryFact(userMsg, explicitRemember) {
+  let fact = String(userMsg ?? '').trim()
+  if (explicitRemember) {
+    fact = fact.replace(/^(請|帮我|幫我|请)?(記住|记住)[：:\s]*/i, '').trim()
+  }
+  fact = fact.replace(/\s+/g, ' ').slice(0, MAX_FACT_CHARS)
+  return fact
 }
 
 export function needsWebSearch(text, searchKeywords = []) {
@@ -93,30 +137,29 @@ export function cleanSearchQuery(text) {
 }
 
 export function classifyMemoryKind(userMsg, explicitRemember) {
+  // orchestrate 自動寫入一律 preference（事實），不產生 episodic memory 洪水
   if (explicitRemember || FACT_RE.test(userMsg)) return 'preference'
-  return 'memory'
+  return 'preference'
 }
 
 export function buildTopicMarkdown(userMsg, reply, explicitRemember) {
   const date = new Date().toISOString().slice(0, 10)
-  const topic = explicitRemember
-    ? String(userMsg).replace(/^(請|帮我|幫我)?(記住|记住)[：:\s]*/i, '').trim().slice(0, 60)
-    : String(userMsg).trim().slice(0, 40)
+  const fact = extractMemoryFact(userMsg, explicitRemember)
+  const topic = fact.slice(0, 60) || '記憶'
   const kind = classifyMemoryKind(userMsg, explicitRemember)
   return [
     '---',
     `title: ${topic}`,
-    `tags: [agent-memory, ${kind}]`,
+    `tags: [agent-memory, ${kind}, curated]`,
     'source: oneai-orchestrate',
     `kind: ${kind}`,
     `updated: ${date}`,
     '---',
     '',
-    explicitRemember ? `## 事實\n${topic}` : `## 對話摘要\n**問：** ${userMsg.slice(0, 200)}`,
+    `## 事實`,
+    fact,
     '',
-    `**答：** ${reply.slice(0, 400)}`,
-    '',
-    `_出處：OneAI 數位大腦 · ${date}_`,
+    `_出處：OneAI · ${date} · 僅存事實不存整段對話_`,
   ].join('\n')
 }
 
@@ -132,31 +175,41 @@ export function buildSystemKnowledgeBlock(systemMemories) {
 
 export function shouldRemember(userMsg, reply, { explicitRemember, smallTalk }) {
   if (smallTalk) return false
-  // 架構/部署問答不寫入個人記憶 — 由 kind=system seed 維護 SSOT
   if (needsSystemKnowledge(userMsg) && !explicitRemember) return false
   if (explicitRemember) return true
-  const u = String(userMsg ?? '').trim()
-  const r = String(reply ?? '').trim()
-  if (u.length >= 24 && r.length >= 120) return true
-  return false
+  if (isEphemeralQuery(userMsg)) return false
+  // 僅當使用者訊息本身含 durable fact 信號才寫入（不論回覆長度）
+  return hasDurableFactSignal(userMsg)
+}
+
+/** @returns {'explicit'|'fact'|'skip'} */
+export function memoryWriteDecision(userMsg, opts = {}) {
+  const { explicitRemember = needsExplicitRemember(userMsg), smallTalk = isSmallTalk(userMsg) } = opts
+  if (shouldRemember(userMsg, '', { explicitRemember, smallTalk })) {
+    return explicitRemember ? 'explicit' : 'fact'
+  }
+  return 'skip'
 }
 
 export function formatRememberPayload(userMsg, reply, explicitRemember) {
   const topicMarkdown = buildTopicMarkdown(userMsg, reply, explicitRemember)
   const kind = classifyMemoryKind(userMsg, explicitRemember)
+  const fact = extractMemoryFact(userMsg, explicitRemember)
   return {
     text: topicMarkdown,
-    title: explicitRemember ? `fact-${Date.now()}` : `chat-${Date.now()}`,
+    title: explicitRemember ? `fact-${Date.now()}` : `fact-${Date.now()}`,
     topicMarkdown,
     kind,
+    fact,
   }
 }
 
-export function buildBrainMeta(memories, remembered) {
+export function buildBrainMeta(memories, remembered, writeDecision = null) {
   return {
     memories_used: memories.length,
     memory_preview: memories.slice(0, 2).map(m => memoryToText(m).slice(0, 100)),
     remembered: !!remembered,
+    memory_write: writeDecision ?? (remembered ? 'saved' : 'skip'),
   }
 }
 

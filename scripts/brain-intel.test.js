@@ -7,6 +7,10 @@ import {
   needsExplicitRemember,
   cleanSearchQuery,
   shouldRemember,
+  memoryWriteDecision,
+  hasDurableFactSignal,
+  isEphemeralQuery,
+  extractMemoryFact,
   mergeAgentRoute,
   enforceSearchReply,
   classifyMemoryKind,
@@ -52,9 +56,18 @@ assert(filterMemories(recallRaw, '你還記得偏好嗎').length === 1, 'recall 
 assert(!shouldRemember('嗨', '你好呀', { explicitRemember: false, smallTalk: true }), 'no remember small talk')
 assert(shouldRemember('記住：偏好', '好的', { explicitRemember: true, smallTalk: false }), 'remember explicit')
 assert(
-  shouldRemember('a'.repeat(30), 'b'.repeat(130), { explicitRemember: false, smallTalk: false }),
-  'remember long exchange',
+  !shouldRemember('a'.repeat(30), 'b'.repeat(130), { explicitRemember: false, smallTalk: false }),
+  'no remember long exchange without fact signal',
 )
+assert(
+  shouldRemember('我下週三要去曼谷出差', '好的', { explicitRemember: false, smallTalk: false }),
+  'remember when user msg has fact signal',
+)
+assert(memoryWriteDecision('搜尋 Zeabur') === 'skip', 'skip search-only')
+assert(memoryWriteDecision('記住：偏好繁體') === 'explicit', 'explicit write')
+assert(isEphemeralQuery('分析：PWA 還是 worker 優先'), 'ephemeral analysis')
+assert(hasDurableFactSignal('記住：我偏好深色模式'), 'durable explicit')
+assert(extractMemoryFact('記住：我偏好深色模式', true).includes('深色'), 'extract fact')
 
 const route = mergeAgentRoute(['engineer'], '記住我偏好深色模式', ['搜尋'], ['記住'])
 assert(route.includes('butler'), 'butler on remember')
@@ -74,7 +87,7 @@ assert(enforced.includes('API Guide'), 'enforce search source 2')
 assert(enforced.includes('Search Tips'), 'enforce search source 3')
 
 assert(classifyMemoryKind('記住出差日期', true) === 'preference', 'fact kind')
-assert(classifyMemoryKind('今天天氣如何', false) === 'memory', 'episodic kind')
+assert(classifyMemoryKind('今天天氣如何', false) === 'preference', 'orchestrate writes preference only')
 
 assert(RECALL_MEMORY_SCORE === 0.2, 'recall score threshold 0.2')
 assert(MIN_MEMORY_SCORE === 0.6, 'score threshold 0.6')

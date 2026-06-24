@@ -158,10 +158,32 @@ git push origin master
 | 層 | kind | 誰寫 | 誰讀 |
 |----|------|------|------|
 | L1 靜態 prompt | — | `agents-config.js` + JSON | 每次 orchestrate |
-| L3 個人 | memory / preference | 對話 auto-remember / 顯式記住 | RAG 語意检索 |
-| L3 系統 | **system** | 啟動 seed + `seed-system-memory.py` | 架構/worker/部署問題時 `kind=system` 查詢 |
+| L3 個人 | **preference**（事實） | 顯式「記住」/ fact 信號 / 手動 | RAG 語意检索 |
+| L3 系統 | **system** | 啟動 seed | 架構/worker 問題 |
+| ~~episodic~~ | ~~memory~~ | **已關閉自動寫入** | 舊資料仍在庫內 |
 
-架構問答 **不寫入** 個人記憶（`shouldRemember` 跳過），避免 SSOT 被對話摘要污染。
+### 寫入政策（`config/oneai.memory.json`）
+
+**預設不存整段對話。** 只有以下會寫 RAG：
+
+1. 你說「**記住：**…」
+2. 訊息含 **durable fact 信號**（偏好、行程、deadline、決定…）
+3. PWA 手動寫入
+4. 系統 SSOT seed
+
+**不會寫入：** 寒暄、純搜尋、純分析建議、架構問答、長回覆但無新事實。
+
+**格式：** 只存 `## 事實` 一行（最多 ~220 字），**不存 Q&A transcript**。
+
+### 注入政策（進上下文）
+
+| 情境 | 最多注入 |
+|------|----------|
+| 一般對話 | 2 條（score≥0.6） |
+| 召回意圖 | 4 條（score≥0.2） |
+| 系統知識 | 2 條 |
+
+寫入前去重 ≥0.95；舊 episodic 記憶需 Butler 整理或手動刪（Phase B）。
 
 ---
 

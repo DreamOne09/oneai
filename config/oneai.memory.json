@@ -1,0 +1,45 @@
+{
+  "_comment": "OneAI 記憶寫入/注入政策 SSOT — 預設不存整段對話，只存可重用事實",
+  "_version": "1.0.0",
+  "_updated": "2026-06-23",
+
+  "policy": {
+    "default": "no_auto_episodic",
+    "summary": "不存每輪 Q&A；僅：① 顯式「記住」② 含 durable fact 信號 ③ 手動寫入 ④ kind=system seed"
+  },
+
+  "write": {
+    "explicit_triggers": ["記住", "幫我記", "帮我记", "別忘了", "别忘了", "不要忘记", "寫進記憶", "写进记忆", "remember this"],
+    "fact_signals": [
+      "偏好", "習慣", "决定", "決定", "deadline", "截止", "行程", "出差", "會議", "会议",
+      "電話", "电话", "地址", "email", "密碼", "密码", "token", "api key",
+      "以後", "以后", "從今", "从今", "標準", "标准", "原則", "原则", "承諾", "承诺",
+      "客戶", "客户", "專案", "项目", "下週", "下周", "明天", "後天"
+    ],
+    "skip_if_only": [
+      "搜尋", "搜索", "search", "分析：", "分析:", "怎麼看", "怎么看", "意見", "意见",
+      "建議", "建议", "compare", "vs", "狀態如何", "状态如何", "你好", "嗨"
+    ],
+    "dedup_score": 0.95,
+    "max_fact_chars": 220,
+    "kinds": {
+      "explicit_or_fact": "preference",
+      "manual": "memory",
+      "system_seed": "system"
+    }
+  },
+
+  "inject": {
+    "min_score": 0.6,
+    "recall_min_score": 0.2,
+    "system_min_score": 0.18,
+    "max_normal": 2,
+    "max_recall": 4,
+    "max_system": 2
+  },
+
+  "curate": {
+    "store_format": "fact_only",
+    "comment": "自動寫入只存 ## 事實 一行，不存完整問答 transcript"
+  }
+}
