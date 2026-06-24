@@ -22,6 +22,8 @@ import chromadb
 from query_vault import query as _query, DEFAULT_MAX_CHARS
 from remember import remember as _remember
 from catalog import catalog as _catalog
+from stats import collection_stats as _stats
+from curate import curate_memory as _curate
 
 
 class QueryReq(BaseModel):
@@ -53,21 +55,25 @@ app = FastAPI(title="OneAI RAG", version="0.1.0", lifespan=lifespan)
 
 @app.get("/health")
 def health():
+    s = _stats()
+    if not s.get("ok"):
+        return {"ok": False, "collection": config.COLLECTION, "doc_count": 0, "total": 0}
+    return {
+        "ok": True,
+        "collection": s.get("collection", config.COLLECTION),
+        "doc_count": s["total"],
+        "total": s["total"],
+        "by_kind": s.get("by_kind", {}),
+        "raw_count": s.get("raw_count"),
+    }
+
+
+@app.get("/stats")
+def stats():
     try:
-        client = chromadb.PersistentClient(path=str(config.CHROMA_DIR))
-        col = client.get_or_create_collection(
-            name=config.COLLECTION, embedding_function=config.get_embedding_function()
-        )
-        count = col.count()
-        if count == 0:
-            try:
-                peek = col.get(include=[], limit=5000)
-                count = len(peek.get("ids") or [])
-            except Exception:
-                pass
-    except Exception:
-        count = 0
-    return {"ok": True, "collection": config.COLLECTION, "doc_count": count, "total": count}
+        return _stats()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"stats 失敗: {e}")
 
 
 @app.post("/query")
@@ -94,6 +100,19 @@ def do_catalog(limit: int = 120):
     """列舉記憶片段（知識圖譜用）。"""
     try:
         lim = max(1, min(limit, 200))
-        return _catalog(lim)
+        out = _catalog(lim)
+        stats = _stats()
+        out["total"] = stats.get("total", out.get("total", 0))
+        out["by_kind"] = stats.get("by_kind", {})
+        return out
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"catalog 失敗: {e}")
+
+
+@app.post("/curate")
+def do_curate(dry_run: bool = True, limit: int = 500):
+    """Butler Phase B — 清理 episodic 垃圾（預設 dry_run）。"""
+    try:
+        return _curate(dry_run=dry_run, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"curate 失敗: {e}")

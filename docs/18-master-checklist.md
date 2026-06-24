@@ -96,11 +96,14 @@ python hands\cursor-agent\cursor_worker.py
 ```powershell
 cd C:\Users\b1993\.cursor\projects\empty-window
 
-# .env 要有 ZEABUR_TOKEN
-python scripts\zeabur-cli.py redeploy --service-id rag
-python scripts\zeabur-cli.py audit --service-id 6a36aec746477d6038840bda
+# 一鍵：redeploy rag + 驗收 + seed + 整理掃描（.env 需 ZEABUR_TOKEN）
+python scripts\deploy-rag-and-verify.py
+# 確認刪除 episodic 垃圾：
+python scripts\deploy-rag-and-verify.py --skip-deploy --apply-curate
 
-# 等 2~3 分鐘後
+# 或手動：
+python scripts\zeabur-cli.py redeploy --service-id rag
+python scripts\test-brain-graph-cloud.py
 python scripts\brain-smoke.py
 python scripts\user-scenario-sim.py   # 目標 10/10
 ```

@@ -1,6 +1,7 @@
 /** 數位大腦智慧層 — 記憶過濾、路由輔助、選擇性寫回 */
 
 import { MEMORY_WRITE, MEMORY_INJECT } from './memory-config.js'
+import { needsMemoryCurate } from './memory-curator.js'
 
 export const MIN_MEMORY_SCORE = MEMORY_INJECT.min_score ?? 0.6
 /** 召回意圖時語意距離較大，門檻需低於一般注入 */
@@ -219,6 +220,9 @@ export function mergeAgentRoute(llmIds, userMsg, searchKeywords, _butlerKeywords
     if (!ids.includes('engineer')) ids.unshift('engineer')
   }
   if (needsExplicitRemember(userMsg) || needsRecall(userMsg)) {
+    if (!ids.includes('butler')) ids.unshift('butler')
+  }
+  if (needsMemoryCurate(userMsg)) {
     if (!ids.includes('butler')) ids.unshift('butler')
   }
   if (needsWebSearch(userMsg, searchKeywords) && !ids.includes('researcher')) {

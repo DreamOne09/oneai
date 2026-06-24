@@ -40,6 +40,15 @@
 
   "curate": {
     "store_format": "fact_only",
-    "comment": "自動寫入只存 ## 事實 一行，不存完整問答 transcript"
+    "comment": "自動寫入只存 ## 事實 一行，不存完整問答 transcript",
+    "phase_b": {
+      "trigger_phrases": ["整理記憶庫", "清理記憶", "確認整理記憶"],
+      "endpoint": "POST /brain/curate",
+      "junk_markers": ["## 對話摘要", "**答：**", "梅蘭直答", "legacy oneai-orchestrate kind=memory"]
+    }
+  },
+  "deploy": {
+    "one_click": "python scripts/deploy-rag-and-verify.py",
+    "apply_curate": "python scripts/deploy-rag-and-verify.py --apply-curate"
   }
 }

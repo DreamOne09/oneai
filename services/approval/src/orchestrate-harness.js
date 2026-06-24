@@ -22,6 +22,7 @@ import {
   classifyMemoryKind,
   memoryWriteDecision,
 } from './brain-intel.js'
+import { needsMemoryCurate } from './memory-curator.js'
 
 export async function runOrchestrateTurn(deps, input) {
   const {
@@ -33,6 +34,7 @@ export async function runOrchestrateTurn(deps, input) {
   const {
     ragQuery,
     ragRememberSmart,
+    ragCurate,
     webSearchCached,
     detectAgentsLLM,
     callOpenRouter,
@@ -50,6 +52,7 @@ export async function runOrchestrateTurn(deps, input) {
 
   const smallTalk = isSmallTalk(userMsg)
   const explicitRemember = needsExplicitRemember(userMsg)
+  const curateIntent = needsMemoryCurate(userMsg)
 
   const persistIfNeeded = async (reply, agentIds = []) => {
     const writeDecision = memoryWriteDecision(userMsg, { explicitRemember, smallTalk })
@@ -65,6 +68,31 @@ export async function runOrchestrateTurn(deps, input) {
 
   const workerCtx = buildWorkerContext(listWorkers())
   const workerBlock = workerCtx.block
+
+  // ①b Butler 整理記憶（Phase B）
+  if (curateIntent) {
+    emit('route_done', { agents: ['butler'], curate: true })
+    const dryFirst = !/確認|真的|apply|執行/i.test(userMsg)
+    const result = await ragCurate(dryFirst, 500)
+    const n = result.junk_chunks ?? 0
+    const reply = result.ok
+      ? (dryFirst && n > 0
+        ? `🧹 掃描完成：發現 ${n} 個可清理的舊對話摘要片段（episodic 垃圾）。\n\n若要刪除，請回覆「確認整理記憶」。`
+        : dryFirst
+          ? '🧹 掃描完成：未發現需清理的 episodic 垃圾，記憶庫乾淨。'
+          : `✅ 已清理 ${n} 個垃圾片段${result.deleted_files ? `，刪除 ${result.deleted_files} 個 vault 檔` : ''}。`)
+      : `⚠️ 整理失敗：${result.error ?? 'RAG 離線或未部署 curate'}`
+    emit('synth_done')
+    return {
+      reply,
+      model: 'butler-curate',
+      agents: [{ id: 'butler', icon: '🫀', display: '管家', reply, model: 'curate' }],
+      memories_used: 0,
+      brain: { memories_used: 0, remembered: false, memory_write: 'skip', curate: result },
+      synthesis: false,
+      workers: workerCtx.summary,
+    }
+  }
 
   // ① 快徑寒暄
   if (smallTalk && !explicitRemember) {

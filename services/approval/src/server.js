@@ -336,6 +336,22 @@ async function ragRememberSmart(text, title, kind = 'memory') {
   return { skipped: false }
 }
 
+/** Butler Phase B — 清理 episodic 垃圾 */
+async function ragCurate(dryRun = true, limit = 500) {
+  try {
+    const res = await fetch(`${RAG_BASE}/curate?dry_run=${dryRun ? 'true' : 'false'}&limit=${limit}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(30_000),
+    })
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
+    const data = await res.json()
+    return { ok: true, ...data }
+  } catch (e) {
+    return { ok: false, error: e.message?.slice(0, 80) }
+  }
+}
+
 /** J：搜尋結果 5 分鐘快取 */
 const searchCache = new Map()
 const SEARCH_CACHE_TTL = 5 * 60 * 1000
@@ -357,6 +373,7 @@ function buildOrchestrateDeps() {
   return {
     ragQuery,
     ragRememberSmart,
+    ragCurate,
     webSearchCached,
     detectAgentsLLM,
     callOpenRouter,
@@ -662,6 +679,14 @@ app.get('/brain/graph', requireChatToken, async (req, res) => {
   }
 })
 
+app.post('/brain/curate', requireChatToken, async (req, res) => {
+  const dryRun = req.body?.apply !== true && req.query?.apply !== 'true'
+  const limit = Math.min(Number(req.body?.limit ?? req.query?.limit ?? 500), 2000)
+  const result = await ragCurate(dryRun, limit)
+  if (!result.ok) return res.status(502).json({ error: 'RAG curate 失敗', detail: result.error })
+  res.json(result)
+})
+
 app.get('/brain/memories', requireChatToken, async (req, res) => {
   const q = String(req.query.q ?? '孟一').slice(0, 200)
   const limit = Math.min(Number(req.query.limit ?? 20), 50)
@@ -719,6 +744,24 @@ app.get('/brain/summary', async (_req, res) => {
       })
     }
   }
+  try {
+    const r = await fetch(`${RAG_HOST}/stats`, { signal: AbortSignal.timeout(4000) })
+    if (r.ok) {
+      const stats = await r.json()
+      const total = stats.total ?? stats.doc_count ?? 0
+      const kinds = stats.by_kind ?? {}
+      const kindHint = Object.keys(kinds).length
+        ? `（preference ${kinds.preference ?? 0} · system ${kinds.system ?? 0} · memory ${kinds.memory ?? 0}）`
+        : ''
+      return res.json({
+        status: 'ok',
+        total_memories: total,
+        by_kind: kinds,
+        summary: `記憶庫運行正常，共 ${total} 個索引片段${kindHint}。`,
+        rag_host: RAG_HOST.split(':')[1],
+      })
+    }
+  } catch { /* fallback health */ }
   try {
     const r = await fetch(`${RAG_HOST}/health`, { signal: AbortSignal.timeout(3000) })
     if (!r.ok) return res.json({ status: 'error', total_memories: 0, summary: '記憶庫暫時離線', note: 'RAG health check failed' })
