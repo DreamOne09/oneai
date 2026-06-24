@@ -300,7 +300,7 @@ cd C:\Users\b1993\.cursor\projects\empty-window
 | 65 | TODO 提取 | 抽待辦 | coach | struct | ❌ | P2 | N |
 | 66 | 出差 checklist | 曼谷出差 | coach | template | ❌ | P2 | N |
 | 67 | 平衡提醒 | 最近太累？ | coach | holistic | ⚠️ | P2 | N |
-| 68 | 拒絕記 key | 記住 API key | butler | refuse | ❌ | P0 | Y |
+| 68 | 拒絕記 key | 記住 API key | butler | refuse | ✅ | P0 | Y |
 | 69 | 語音輸入 | PWA voice | coach | STT | ❌ | P3 | N |
 | 70 | 時區 | 曼谷幾點 | analyst | tool | ❌ | P3 | N |
 
