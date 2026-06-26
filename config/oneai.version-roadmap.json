@@ -1,0 +1,153 @@
+{
+  "_comment": "OneAI 2.0→10.0 版本演進路線圖 SSOT",
+  "pipeline": {
+    "gtx_target_pass_rate": 0.85,
+    "gtx_auto_min_pass": 18,
+    "user_sim_min_pass": 8,
+    "council_rounds": 2,
+    "debate_agents": ["coach", "engineer", "pm", "researcher", "butler", "security_auditor"]
+  },
+  "versions": {
+    "2.0": {
+      "codename": "digital-office",
+      "status": "ga",
+      "north_star": "真實數位辦公室：辯論、編制、派工",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 18,
+        "health_version": "2.0.0",
+        "council_debate": true,
+        "user_sim_pass_min": 8
+      },
+      "wave_deliverables": [
+        "Agent Council 2-3 輪辯論",
+        "36 人編制 API",
+        "COO Handoff Cloud GHA",
+        "PWA 議會 UI",
+        "多贏教條"
+      ],
+      "next_blockers": ["OPENAI_API_KEY 502", "GITHUB_TOKEN handoff", "RAG Volume", "#34 Cursor worker"]
+    },
+    "3.0": {
+      "codename": "hands-first",
+      "status": "planned",
+      "north_star": "議會定稿後能自動派工，Skill 可重用",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 35,
+        "council_auto_handoff": true,
+        "skill_reuse_api": true
+      },
+      "wave_deliverables": [
+        "議會定稿 → 自動 Cursor 派工",
+        "Skill 累積與跨 Agent 重用",
+        "Handoff 狀態回寫 PWA",
+        "GTX 自動情境 ≥35/100"
+      ]
+    },
+    "4.0": {
+      "codename": "memory-graph",
+      "status": "planned",
+      "north_star": "記憶有遺忘、有圖譜、偏好可演進",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 50,
+        "fama_forgetting": true,
+        "preference_graph": true
+      },
+      "wave_deliverables": [
+        "FAMA 記憶遺忘 #17 #18",
+        "Preference graph 可視化",
+        "Curate 自動排程",
+        "深研完成 Web Push"
+      ]
+    },
+    "5.0": {
+      "codename": "autopilot",
+      "status": "planned",
+      "north_star": "主動但不 spam：晨報、監控、時機對的推播",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 60,
+        "morning_digest_productized": true
+      },
+      "wave_deliverables": [
+        "Autopilot 晨報產品化",
+        "Worker 健康監控告警",
+        "Action dedup 2h 冷卻全面化",
+        "Proactive 推送策略引擎"
+      ]
+    },
+    "6.0": {
+      "codename": "omnichannel",
+      "status": "planned",
+      "north_star": "手機 PWA 為主，LINE/TG 薄通道可達",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 70,
+        "thin_channel_webhook": true
+      },
+      "wave_deliverables": [
+        "LINE/TG webhook 薄通道",
+        "跨通道 thread 統一",
+        "語音輸入穩定化",
+        "離線 PWA 快取策略"
+      ]
+    },
+    "7.0": {
+      "codename": "enterprise-guard",
+      "status": "planned",
+      "north_star": "高風險動作一律 HITL，審核可稽核",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 78,
+        "hitl_all_high_risk": true
+      },
+      "wave_deliverables": [
+        "審核閘產品化 #81-84",
+        "params_hash 全面化",
+        "審核稽核 log",
+        "零和請求自動拒絕"
+      ]
+    },
+    "8.0": {
+      "codename": "hermes-247",
+      "status": "planned",
+      "north_star": "Cloud-First + VPS worker 24/7，本機可選",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 85,
+        "hermes_vps_worker": true
+      },
+      "wave_deliverables": [
+        "Hermes VPS worker 常駐",
+        "Cloud-First 為預設路徑",
+        "Cursor worker 自動恢復",
+        "#34 GTX 全綠"
+      ]
+    },
+    "9.0": {
+      "codename": "langgraph-hitl",
+      "status": "planned",
+      "north_star": "高風險流程 Graph 編排 + 人類節點",
+      "ga_criteria": {
+        "gtx_auto_pass_min": 92,
+        "langgraph_high_risk": true
+      },
+      "wave_deliverables": [
+        "LangGraph HITL 高風險子圖",
+        "多步驟任務可暫停/恢復",
+        "Graph 狀態 PWA 可視",
+        "MCP A2A 跨 runtime"
+      ]
+    },
+    "10.0": {
+      "codename": "singularity-team",
+      "status": "planned",
+      "north_star": "GTX 100/100，超級團隊可自治且多贏",
+      "ga_criteria": {
+        "gtx_pass_all_100": true,
+        "gtx_min_score_avg": 14
+      },
+      "wave_deliverables": [
+        "GTX-100 全情境 ≥12/16",
+        "36 人編制全角色實戰驗收",
+        "端到端 24h  soak test",
+        "10.0 正式 GA 公告"
+      ]
+    }
+  }
+}

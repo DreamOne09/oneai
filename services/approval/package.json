@@ -1,6 +1,6 @@
 ﻿{
     "name":  "approval-svc",
-    "version":  "1.2.0",
+    "version":  "2.0.0",
     "private":  true,
     "type":  "module",
     "description":  "Human-in-the-Loop 撖拇??:ntfy ?冽 + Web Push + approve/reject + ?暹??身??",

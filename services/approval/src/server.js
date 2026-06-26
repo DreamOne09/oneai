@@ -34,6 +34,7 @@ import {
   updateStaffMember,
 } from './agent-registry.js'
 import { detectAgentsFromRegistry } from './coo-staffing.js'
+import { buildVersionPayload, ONEAI_VERSION } from './oneai-version.js'
 
 const app = express()
 app.use(express.json({ limit: '256kb' }))
@@ -120,13 +121,15 @@ function requireWorkerToken(req, res, next) {
   return res.status(401).json({ error: 'unauthorized' })
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, version: '1.2.0', pending: store.listPending().length }))
+app.get('/health', (_req, res) => res.json({ ok: true, version: ONEAI_VERSION, pending: store.listPending().length }))
+
+app.get('/oneai/version', (_req, res) => res.json(buildVersionPayload({ pending: store.listPending().length })))
 
 // /status  ── 服務狀態快速查詢（E2E / 監控用，需 service token）
 app.get('/status', requireServiceToken, (_req, res) => {
   res.json({
     ts: Date.now(),
-    version: '1.2.0',
+    version: ONEAI_VERSION,
     services: {
       approval_svc: { status: 'ok', pending: store.listPending().length },
       openrouter: { status: process.env.OPENAI_API_KEY ? 'configured' : 'missing_key' },
@@ -473,6 +476,8 @@ function buildOrchestrateDeps() {
     getAgentModel,
     getAgentSystem: (id) => buildAgentSystem(id) ?? AGENT_SYSTEMS[id],
     detectAgentsFallback: detectAgentsFromRegistry,
+    triggerCloudHand,
+    randomId: () => randomUUID(),
   }
 }
 

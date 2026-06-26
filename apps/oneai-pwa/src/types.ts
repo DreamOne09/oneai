@@ -80,7 +80,7 @@ export interface TaskMeta {
   projectName: string
   summary: string
   status: 'queued' | 'running' | 'done' | 'error' | 'timeout' | 'rejected'
-  worker?: 'cursor' | 'shell'
+  worker?: 'cursor' | 'shell' | 'cloud'
 }
 
 export interface CursorJob {

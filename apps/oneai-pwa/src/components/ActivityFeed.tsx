@@ -123,7 +123,9 @@ function MessageBubble({ item }: { item: ActivityItem }) {
             </div>
             <div className="task-card-summary">{item.taskMeta.summary}</div>
             <div className="task-card-meta">
-              {item.taskMeta.worker === 'cursor' ? 'Cursor IDE' : '桌機 Worker'}
+              {item.taskMeta.worker === 'cursor' ? 'Cursor IDE'
+                : item.taskMeta.worker === 'cloud' ? 'Cloud GHA'
+                  : '桌機 Worker'}
               {' · '}
               {item.taskMeta.taskId.slice(0, 8)}
             </div>

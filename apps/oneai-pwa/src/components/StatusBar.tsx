@@ -38,7 +38,7 @@ export default function StatusBar() {
     <div className="statusbar glass">
       <div className="brand">
         <span className="dot" data-status={status} />
-        ONEAI
+        ONEAI 2.0
       </div>
       <div className="status-meta">
         <span className="status-label">{LABEL[status]}</span>

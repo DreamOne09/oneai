@@ -13,7 +13,9 @@
     "model": "node scripts/oneai-model.mjs",
     "pwa:dev": "npm run dev -w apps/oneai-pwa",
     "pwa:build": "npm run build -w apps/oneai-pwa",
-    "approval:dev": "npm run dev -w services/approval"
+    "approval:dev": "npm run dev -w services/approval",
+    "evolve": "python scripts/version-evolution-pipeline.py",
+    "evolve:plan": "python scripts/version-evolution-pipeline.py --from 2.0 --to 10.0 --plan-only"
   },
   "engines": {
     "node": ">=20"

@@ -25,6 +25,8 @@ const PHASE_FALLBACK: Record<string, string> = {
   synth_done: '✨ 整合完成',
   memory_saved: '📝 寫入記憶…',
   skill_saved: '💾 儲存 Skill…',
+  handoff_start: '☁️ 梅蘭派工中…',
+  handoff_done: '☁️ 派工完成',
 }
 
 const QUICK_CHIPS = [
@@ -292,6 +294,25 @@ export default function ChatInput() {
         pushActivity('task', `🌐 Browser 深度研究 · ${tid.slice(0, 8)}…`, {
           agentId: 'researcher', agentIcon: '🌐', agentDisplay: '深度研究',
           taskMeta,
+        })
+      }
+
+      if (result.handoff) {
+        const h = result.handoff
+        const jobLabel = h.job ?? h.channel
+        const statusIcon = h.status === 'running' ? '☁️' : h.status === 'error' ? '⚠️' : '💻'
+        pushActivity('task', `${statusIcon} COO 派工 · ${jobLabel} (${h.status})`, {
+          agentId: 'coach',
+          agentIcon: '🌸',
+          agentDisplay: '梅蘭',
+          taskMeta: h.task_id ? {
+            taskId: h.task_id,
+            projectPath: '',
+            projectName: `Cloud ${jobLabel}`,
+            summary: h.poll ?? '',
+            status: h.status === 'running' ? 'running' : h.status === 'error' ? 'error' : 'queued',
+            worker: 'cloud' as const,
+          } : undefined,
         })
       }
 

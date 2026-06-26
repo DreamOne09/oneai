@@ -11,7 +11,9 @@
 |------|--------|------|
 | [00-start-here.md](00-start-here.md) | 所有人 | **5 分鐘速覽** |
 | [**19-deployment-and-workers.md**](19-deployment-and-workers.md) | **維運 / 部署** | **GitHub vs Zeabur、agy↔Cursor、Worker 常駐** |
-| [**20-oneai-2.0-day-plan.md**](20-oneai-2.0-day-plan.md) | **2.0 進化** | **⭐ 100 情境 GTX + 一日衝刺計畫（治標治本）** |
+| [**24-version-evolution-pipeline.md**](24-version-evolution-pipeline.md) | **2.0→10.0** | **⭐ 版本週期管線（GTX+辯論+E2E+文件）** |
+| [**evolution/00-evolution-log.md**](evolution/00-evolution-log.md) | **演進紀錄** | **各版 cycle report 索引** |
+| [**20-oneai-2.0-day-plan.md**](20-oneai-2.0-day-plan.md) | **2.0 進化** | **100 情境 GTX + 一日衝刺計畫（治標治本）** |
 | [**18-master-checklist.md**](18-master-checklist.md) | **執行交付** | **全部待辦 + §2 本地必做 + 10 情境** |
 | [17-lessons-learned-and-war-stories.md](17-lessons-learned-and-war-stories.md) | 部署 / 除錯 | 踩坑大紀錄 |
 | [../infra/zeabur/.deploy-state.md](../infra/zeabur/.deploy-state.md) | 維運 | Service ID、env、CLI 範式（部署 SSOT） |

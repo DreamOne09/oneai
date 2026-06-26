@@ -44,6 +44,14 @@ export interface OrchestrateResult {
   squad?: string
   squad_display?: string
   orchestrator?: { id: string; display: string; role: string }
+  handoff?: {
+    channel: string
+    job?: string
+    status: string
+    task_id?: string
+    poll?: string
+    error?: string
+  }
 }
 
 export type OrchestratePhase =
@@ -83,6 +91,7 @@ function parseOrchestratePayload(data: Record<string, unknown>): OrchestrateResu
     squad: data.squad as string | undefined,
     squad_display: data.squad_display as string | undefined,
     orchestrator: data.orchestrator as OrchestrateResult['orchestrator'],
+    handoff: data.handoff as OrchestrateResult['handoff'],
   }
 }
 

@@ -45,6 +45,7 @@ import {
   formatStaffActionReply,
   buildCouncilRoster,
 } from './coo-staffing.js'
+import { runCooHandoff } from './coo-handoff.js'
 
 export async function runOrchestrateTurn(deps, input) {
   const {
@@ -396,6 +397,14 @@ ${succeeded.length === 1 ? '僅一位專家：仍請以營運長口吻完整回�
     emit('skill_saved', { agent: 'engineer' })
   }
 
+  // ⑦ COO Handoff（OneAI 2.0 — 明確執行意圖 → Cloud GHA / Cursor 提示）
+  let handoff = null
+  const handoffResult = await runCooHandoff(deps, { userMsg, reply: replyOut, codeBlock, emit })
+  if (handoffResult) {
+    replyOut += handoffResult.replyAppend
+    handoff = handoffResult.handoff
+  }
+
   return {
     reply: replyOut,
     model: finalModel,
@@ -410,5 +419,6 @@ ${succeeded.length === 1 ? '僅一位專家：仍請以營運長口吻完整回�
     ...(roster.squad ? { squad: roster.squad, squad_display: roster.squad_display } : {}),
     ...(webSearchMeta ? { web_search: webSearchMeta } : {}),
     ...(codeBlock ? { can_execute: true, execute_code: codeBlock } : {}),
+    ...(handoff ? { handoff } : {}),
   }
 }

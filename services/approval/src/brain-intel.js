@@ -321,4 +321,6 @@ export const PHASE_LABELS = {
   memory_saved: '📝 已寫入記憶',
   skill_saved: '📚 已生成 Skill',
   staff_done: '👥 人事異動完成',
+  handoff_start: '☁️ 梅蘭派工中…',
+  handoff_done: '☁️ 派工完成',
 }

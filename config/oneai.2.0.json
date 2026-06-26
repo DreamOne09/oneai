@@ -1,0 +1,81 @@
+{
+  "_comment": "OneAI 2.0 能力清單 SSOT — 與 approval-svc 版本對齊",
+  "version": "2.0.0",
+  "codename": "digital-office",
+  "released": "2026-06-25",
+  "north_star": "真實數位辦公室：能辯論、能派工、能多贏，不是只會說話的 chatbot",
+
+  "pillars": {
+    "coo": "梅蘭 COO — 主持議會、人事、篩選定稿",
+    "council": "共享 thread 多輪辯論（2–3 輪）",
+    "staff": "最多 36 位助理，營運長可增刪改",
+    "hands": "Cursor / 桌機 worker / Cloud GHA",
+    "brain": "Obsidian + rag-svc 唯一 SSOT",
+    "guardrail": "approval-svc + Web Push",
+    "doctrine": "多贏原則，拒絕零和（三爽已廢止）"
+  },
+
+  "capabilities": {
+    "orchestrate_harness": true,
+    "agent_council_debate": true,
+    "council_transcript_pwa": true,
+    "staff_registry_api": true,
+    "max_staff": 36,
+    "max_council_participants": 6,
+    "council_default_rounds": 2,
+    "council_high_stakes_rounds": 3,
+    "fast_path_single_agent": true,
+    "multi_win_doctrine": true,
+    "coo_handoff": true,
+    "cloud_hands_github": true,
+    "web_search_tavily": true,
+    "memory_curate": true,
+    "browser_deep_research": true,
+    "action_log_dedup": true,
+    "pwa_council_live_bar": true,
+    "pwa_office_staff_panel": true
+  },
+
+  "waves": {
+    "wave1_ga": {
+      "label": "2.0 GA — 數位辦公室",
+      "status": "shipped",
+      "items": [
+        "Agent Council 辯論 loop",
+        "36 人編制 + 人事 API",
+        "PWA 議會即時 UI",
+        "多贏取代三爽",
+        "COO Handoff → Cloud GHA",
+        "版本 2.0.0 + /oneai/version"
+      ]
+    },
+    "wave2": {
+      "label": "2.0-B 能幹活",
+      "status": "planned",
+      "items": [
+        "議會定稿 → 自動 Cursor 派工（非僅建議）",
+        "Skill 累積（sop → 全辦公室重用）",
+        "FAMA 記憶遺忘 #17 #18",
+        "深研完成 Web Push #30",
+        "GTX-100 ≥85/100 通過"
+      ]
+    },
+    "wave3": {
+      "label": "2.0-C 超強團隊",
+      "status": "planned",
+      "items": [
+        "Autopilot 晨報 / 監控",
+        "Hermes 24/7 VPS worker",
+        "薄通道 LINE/TG",
+        "LangGraph HITL（僅高風險）"
+      ]
+    }
+  },
+
+  "ga_criteria": {
+    "gtx_pass_rate": "≥85/100 情境 ≥12/16 分",
+    "cloud_llm": "orchestrate 502 率 <1%",
+    "rag_volume": "Chroma 持久化 Volume 已掛",
+    "workers": "cursor + agy 常駐或 Cloud-First 替代驗收"
+  }
+}
